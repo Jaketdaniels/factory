@@ -1,71 +1,4 @@
-/** Server-rendered pages. Plain HTML, no client framework — probes replace these. */
-
-const PRODUCT_NAME = "tariff-watch";
-
-function page(title: string, body: string): string {
-	return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
-<style>
-:root { color-scheme: light dark; }
-body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 3rem auto; padding: 0 1rem; line-height: 1.6; }
-code, pre { background: rgba(127, 127, 127, 0.15); border-radius: 4px; padding: 0.1rem 0.3rem; }
-pre { padding: 0.75rem; overflow-x: auto; }
-button { font: inherit; padding: 0.5rem 1rem; cursor: pointer; }
-.error { color: #b91c1c; }
-</style>
-</head>
-<body>
-${body}
-</body>
-</html>`;
-}
-
-export function landingPage(): string {
-	return page(
-		PRODUCT_NAME,
-		`<h1>${PRODUCT_NAME}</h1>
-<p>Replace this landing page with the probe's actual pitch: what it does, who it is for, and the one action to take.</p>
-<h2>Try the API</h2>
-<pre>curl -X POST -H "Authorization: Bearer &lt;your-key&gt;" -H "Content-Type: application/json" \\
-  -d '{"message":"hello"}' https://&lt;your-domain&gt;/v1/echo</pre>
-<h2>Get a key</h2>
-<form id="checkout">
-  <label for="email">Email</label>
-  <input id="email" name="email" type="email" required autocomplete="email">
-  <button type="submit">Subscribe</button>
-  <p class="error" id="checkout-error" role="alert" hidden></p>
-</form>
-<script>
-document.getElementById("checkout").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const errorEl = document.getElementById("checkout-error");
-  errorEl.hidden = true;
-  const button = e.target.querySelector("button");
-  button.disabled = true;
-  button.textContent = "Redirecting…";
-  try {
-    const res = await fetch("/billing/checkout", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: e.target.email.value }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.url) throw new Error(data.error?.message ?? "Checkout failed");
-    location.href = data.url;
-  } catch (err) {
-    errorEl.textContent = err.message;
-    errorEl.hidden = false;
-    button.disabled = false;
-    button.textContent = "Subscribe";
-  }
-});
-</script>`,
-	);
-}
+/** Server-rendered pages for tariff-watch. Plain HTML, no client framework. */
 
 export function escapeHtml(value: string): string {
 	return value
@@ -74,6 +7,114 @@ export function escapeHtml(value: string): string {
 		.replaceAll(">", "&gt;")
 		.replaceAll('"', "&quot;")
 		.replaceAll("'", "&#39;");
+}
+
+function page(title: string, body: string): string {
+	return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Daily facts-only changelog of US tariff, customs and trade-action changes — USTR, CBP, ITA, ITC, BIS and presidential tariff documents — as token-efficient Markdown and a JSON API for AI agents.">
+<title>${title}</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: system-ui, sans-serif; max-width: 46rem; margin: 3rem auto; padding: 0 1rem; line-height: 1.6; }
+code, pre { background: rgba(127, 127, 127, 0.15); border-radius: 4px; padding: 0.1rem 0.3rem; }
+pre { padding: 0.75rem; overflow-x: auto; }
+button { font: inherit; padding: 0.5rem 1rem; cursor: pointer; }
+input { font: inherit; padding: 0.4rem; }
+.error { color: #b91c1c; }
+.doc { margin-bottom: 0.75rem; }
+.meta { font-size: 0.85rem; opacity: 0.75; }
+footer { margin-top: 3rem; font-size: 0.85rem; opacity: 0.75; }
+</style>
+</head>
+<body>
+${body}
+<footer>
+<p>Source: <a href="https://www.federalregister.gov/">Federal Register</a> (US government work, public domain). tariff-watch publishes its own factual summaries with links to every primary document — no third-party text is reproduced.</p>
+</footer>
+</body>
+</html>`;
+}
+
+export interface LandingDoc {
+	title: string;
+	docType: string;
+	publicationDate: string;
+	url: string;
+	agencies: string[];
+}
+
+export function landingPage(latestDocs: LandingDoc[], latestSnapshotDate: string | null, freeQuota: number): string {
+	const docList =
+		latestDocs.length === 0
+			? `<p class="meta">No documents ingested yet — the first daily snapshot is on its way.</p>`
+			: latestDocs
+					.map(
+						(d) => `<div class="doc">
+<strong>[${escapeHtml(d.docType)}]</strong> <a href="${escapeHtml(d.url)}" rel="noopener">${escapeHtml(d.title)}</a>
+<div class="meta">${escapeHtml(d.publicationDate)}${d.agencies.length > 0 ? ` · ${escapeHtml(d.agencies.join(", "))}` : ""}</div>
+</div>`,
+					)
+					.join("\n");
+
+	const snapshotLink =
+		latestSnapshotDate === null
+			? ""
+			: `<p>Latest snapshot: <a href="/snapshot/latest.md"><code>/snapshot/latest.md</code></a> (${escapeHtml(latestSnapshotDate)}) — token-efficient Markdown for LLMs and agents. Index: <a href="/llms.txt"><code>/llms.txt</code></a>.</p>`;
+
+	return page(
+		"tariff-watch — daily US tariff & trade-action changelog",
+		`<h1>What changed in US tariffs — today</h1>
+<p>US trade policy now changes weekly: Section 232/301 actions, de-minimis rules, exclusion lists, antidumping orders. Language models answer with stale data; reading the Federal Register yourself takes hours. <strong>tariff-watch</strong> publishes a facts-only daily changelog of every trade-relevant federal action — as human-readable pages, immutable Markdown snapshots, and a JSON API built for agents.</p>
+${snapshotLink}
+<h2>Latest trade actions</h2>
+${docList}
+<h2>API</h2>
+<pre># Free Markdown for agents
+curl https://&lt;this-domain&gt;/snapshot/latest.md
+
+# Structured JSON (free key, ${freeQuota} requests/month)
+curl -X POST -H "Content-Type: application/json" -d '{"email":"you@example.com"}' https://&lt;this-domain&gt;/v1/keys
+curl -H "Authorization: Bearer &lt;your-key&gt;" "https://&lt;this-domain&gt;/v1/changes?since=2026-06-01"</pre>
+<form id="freekey">
+  <label for="email">Get a free API key:</label>
+  <input id="email" name="email" type="email" required autocomplete="email" placeholder="you@example.com">
+  <button type="submit">Create key</button>
+  <p class="error" id="freekey-error" role="alert" hidden></p>
+  <pre id="freekey-result" hidden></pre>
+</form>
+<script>
+document.getElementById("freekey").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("freekey-error");
+  const resultEl = document.getElementById("freekey-result");
+  errorEl.hidden = true;
+  const button = e.target.querySelector("button");
+  button.disabled = true;
+  button.textContent = "Creating…";
+  try {
+    const res = await fetch("/v1/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: e.target.email.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message ?? "Key creation failed");
+    resultEl.textContent = "Your key (shown once, store it now):\\n" + data.key;
+    resultEl.hidden = false;
+    button.textContent = "Done";
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.hidden = false;
+    button.disabled = false;
+    button.textContent = "Create key";
+  }
+});
+</script>`,
+	);
 }
 
 export type SuccessState =

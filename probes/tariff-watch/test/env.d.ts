@@ -6,6 +6,7 @@ declare global {
 			TEST_MIGRATIONS: D1Migration[];
 			STRIPE_SECRET_KEY: string;
 			STRIPE_WEBHOOK_SECRET: string;
+			ADMIN_TOKEN: string;
 		}
 	}
 }

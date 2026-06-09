@@ -13,6 +13,7 @@ export default defineConfig(async () => {
 						// Test-only doubles; real secrets live in .dev.vars / wrangler secret.
 						STRIPE_SECRET_KEY: "rk_test_dummy",
 						STRIPE_WEBHOOK_SECRET: "whsec_test_secret",
+						ADMIN_TOKEN: "test-admin-token-0123456789",
 					},
 				},
 			}),

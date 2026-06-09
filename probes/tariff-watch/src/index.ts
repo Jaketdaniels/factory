@@ -17,16 +17,45 @@ import {
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
-import { landingPage, successPage } from "./landing";
+import { isoDate, runIngest } from "./ingest";
+import { type LandingDoc, landingPage, successPage } from "./landing";
 
 type AppEnv = {
 	Bindings: Env;
 	Variables: MeteredVariables;
 };
 
-const echoBodySchema = z.object({ message: z.string().min(1).max(1000) });
 const checkoutBodySchema = z.object({ email: z.string().email() });
 const sessionIdSchema = z.object({ session_id: z.string().min(1) });
+const freeKeyBodySchema = z.object({ email: z.string().email() });
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const changesQuerySchema = z.object({
+	since: z.string().regex(DATE_PATTERN, "Use YYYY-MM-DD").optional(),
+	limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+const snapshotParamSchema = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}\.md$/, "Use YYYY-MM-DD.md") });
+
+const storedDocRowSchema = z.object({
+	document_number: z.string(),
+	title: z.string(),
+	doc_type: z.string(),
+	abstract: z.string().nullable(),
+	publication_date: z.string(),
+	url: z.string(),
+	agencies: z.string(),
+});
+
+const adminEnvSchema = z.object({ ADMIN_TOKEN: z.string().min(16).optional() });
+
+/** Constant-time string comparison via hashed digests (lengths may differ). */
+async function timingSafeEqualStrings(a: string, b: string): Promise<boolean> {
+	const encoder = new TextEncoder();
+	const [da, db] = await Promise.all([
+		crypto.subtle.digest("SHA-256", encoder.encode(a)),
+		crypto.subtle.digest("SHA-256", encoder.encode(b)),
+	]);
+	return crypto.subtle.timingSafeEqual(da, db);
+}
 
 /**
  * Idempotently reserve a completed Checkout Session (single insert — fully
@@ -59,19 +88,130 @@ const app = new Hono<AppEnv>()
 	.onError(onApiError)
 	.notFound((c) => c.json(errorBody("not_found", "No such route."), 404))
 
-	.get("/", (c) => {
+	.get("/", async (c) => {
 		c.executionCtx.waitUntil(track(c.env.DB, "pageview", { path: "/" }));
-		return c.html(landingPage());
+		const [docsResult, snapshotRow] = await Promise.all([
+			c.env.DB.prepare(
+				"SELECT document_number, title, doc_type, abstract, publication_date, url, agencies FROM tariff_documents ORDER BY publication_date DESC, document_number DESC LIMIT 12",
+			).all(),
+			c.env.DB.prepare("SELECT snapshot_date FROM snapshots ORDER BY snapshot_date DESC LIMIT 1").first(),
+		]);
+		const docs: LandingDoc[] = z
+			.array(storedDocRowSchema)
+			.parse(docsResult.results)
+			.map((d) => ({
+				title: d.title,
+				docType: d.doc_type,
+				publicationDate: d.publication_date,
+				url: d.url,
+				agencies: z.array(z.string()).catch([]).parse(JSON.parse(d.agencies)),
+			}));
+		const latestSnapshot = z.object({ snapshot_date: z.string() }).nullable().parse(snapshotRow);
+		return c.html(landingPage(docs, latestSnapshot?.snapshot_date ?? null, c.env.FREE_MONTHLY_QUOTA));
 	})
 
 	.get("/healthz", (c) => c.json({ ok: true }))
 
-	// Example metered endpoint — replace with the probe's real API surface.
-	// Validator runs BEFORE metered() so malformed (4xx) requests are never billed.
-	.post("/v1/echo", zValidator("json", echoBodySchema), metered<AppEnv>("echo"), (c) => {
-		const { message } = c.req.valid("json");
-		const usage = c.get("usage");
-		return c.json({ echo: message, plan: c.get("apiKey").plan, remaining: usage.remaining });
+	// Agent-facing index: what this service is and how to consume it.
+	.get("/llms.txt", (c) => {
+		c.header("content-type", "text/markdown; charset=utf-8");
+		return c.body(`# tariff-watch
+
+> Daily facts-only changelog of US tariff, customs, and trade-action changes,
+> derived from the Federal Register (public domain): USTR, CBP, International
+> Trade Administration, International Trade Commission, Bureau of Industry and
+> Security, Foreign-Trade Zones Board, and presidential tariff documents.
+
+## Free Markdown snapshots (no key required)
+
+- [Latest snapshot](/snapshot/latest.md): the last 7 days of trade actions, token-efficient Markdown, regenerated daily.
+- /snapshot/YYYY-MM-DD.md: immutable dated snapshots for point-in-time grounding.
+
+## JSON API (free key)
+
+- POST /v1/keys with {"email": "..."} returns an API key (shown once).
+- GET /v1/changes?since=YYYY-MM-DD&limit=50 with "Authorization: Bearer <key>" returns structured documents: number, title, type, abstract, publication date, agencies, primary-source URL.
+
+Every fact links to its primary federalregister.gov document.
+`);
+	})
+
+	.get("/snapshot/latest.md", async (c) => {
+		const row = await c.env.DB.prepare(
+			"SELECT snapshot_date, markdown FROM snapshots ORDER BY snapshot_date DESC LIMIT 1",
+		).first();
+		if (row === null) {
+			return c.json(errorBody("no_snapshot", "No snapshot generated yet. Check back after the next daily run."), 404);
+		}
+		const snapshot = z.object({ snapshot_date: z.string(), markdown: z.string() }).parse(row);
+		c.header("content-type", "text/markdown; charset=utf-8");
+		c.header("x-snapshot-date", snapshot.snapshot_date);
+		return c.body(snapshot.markdown);
+	})
+
+	.get("/snapshot/:date", zValidator("param", snapshotParamSchema), async (c) => {
+		const date = c.req.valid("param").date.replace(/\.md$/, "");
+		const row = await c.env.DB.prepare("SELECT markdown FROM snapshots WHERE snapshot_date = ?").bind(date).first();
+		if (row === null) {
+			return c.json(errorBody("no_snapshot", `No snapshot exists for ${date}.`), 404);
+		}
+		c.header("content-type", "text/markdown; charset=utf-8");
+		c.header("x-snapshot-date", date);
+		return c.body(z.object({ markdown: z.string() }).parse(row).markdown);
+	})
+
+	// Self-serve free key (quota via FREE_MONTHLY_QUOTA). Returned exactly once.
+	.post("/v1/keys", zValidator("json", freeKeyBodySchema), async (c) => {
+		const { email } = c.req.valid("json");
+		const created = await createApiKey(c.env.DB, {
+			plan: "free",
+			monthlyQuota: c.env.FREE_MONTHLY_QUOTA,
+			email,
+		});
+		c.executionCtx.waitUntil(track(c.env.DB, "free_key_created"));
+		return c.json({ key: created.rawKey, plan: "free", monthly_quota: c.env.FREE_MONTHLY_QUOTA }, 201);
+	})
+
+	// Structured changes feed. Validator runs BEFORE metered() so malformed
+	// (4xx) requests are never billed.
+	.get("/v1/changes", zValidator("query", changesQuerySchema), metered<AppEnv>("changes"), async (c) => {
+		const { since, limit } = c.req.valid("query");
+		const sinceDate = since ?? isoDate(new Date(Date.now() - 7 * 86_400_000));
+		const { results } = await c.env.DB.prepare(
+			"SELECT document_number, title, doc_type, abstract, publication_date, url, agencies FROM tariff_documents WHERE publication_date >= ? ORDER BY publication_date DESC, document_number DESC LIMIT ?",
+		)
+			.bind(sinceDate, limit)
+			.all();
+		const docs = z.array(storedDocRowSchema).parse(results);
+		return c.json({
+			since: sinceDate,
+			count: docs.length,
+			results: docs.map((d) => ({
+				document_number: d.document_number,
+				title: d.title,
+				type: d.doc_type,
+				abstract: d.abstract,
+				publication_date: d.publication_date,
+				url: d.url,
+				agencies: z.array(z.string()).catch([]).parse(JSON.parse(d.agencies)),
+			})),
+			usage: { remaining: c.get("usage").remaining },
+		});
+	})
+
+	// Operational trigger for ingest (cron does this daily). Requires ADMIN_TOKEN.
+	.post("/admin/ingest", async (c) => {
+		const adminEnv = adminEnvSchema.parse(c.env);
+		const provided = c.req.header("x-admin-token");
+		if (adminEnv.ADMIN_TOKEN === undefined) {
+			return c.json(errorBody("not_configured", "ADMIN_TOKEN is not configured."), 503);
+		}
+		if (provided === undefined || !(await timingSafeEqualStrings(provided, adminEnv.ADMIN_TOKEN))) {
+			return c.json(errorBody("forbidden", "Invalid admin token."), 403);
+		}
+		const result = await runIngest(c.env, new Date());
+		c.executionCtx.waitUntil(track(c.env.DB, "ingest_run", { trigger: "admin", ...result }));
+		return c.json(result);
 	})
 
 	.post("/billing/checkout", zValidator("json", checkoutBodySchema), async (c) => {
@@ -192,9 +332,9 @@ export type AppType = typeof app;
 
 export default {
 	fetch: app.fetch,
-	// Probe-specific scheduled work (daily snapshots, digests, alerts).
-	// Enable the cron trigger in wrangler.jsonc when implementing.
+	// Daily ingest: pull new Federal Register trade documents, regenerate the snapshot.
 	async scheduled(controller, env, ctx): Promise<void> {
-		ctx.waitUntil(track(env.DB, "cron_tick", { cron: controller.cron }));
+		const result = await runIngest(env, new Date(controller.scheduledTime));
+		ctx.waitUntil(track(env.DB, "ingest_run", { trigger: "cron", cron: controller.cron, ...result }));
 	},
 } satisfies ExportedHandler<Env>;

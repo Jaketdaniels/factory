@@ -1,7 +1,16 @@
 # tariff-watch
 
-A factory probe: a small, self-serve, metered product on Cloudflare Workers.
-Stamped from `templates/probe` by `npm run new-probe -- <name>`.
+**Live:** https://tariff-watch.jaketdaniels95.workers.dev — daily facts-only
+changelog of US tariff/customs/trade actions from the Federal Register (public
+domain), served as HTML, immutable Markdown snapshots, and a metered JSON API.
+
+Surfaces: `/` (SEO landing) · `/llms.txt` · `/snapshot/latest.md` ·
+`/snapshot/YYYY-MM-DD.md` · `POST /v1/keys` (free key) · `GET /v1/changes`
+(metered) · `POST /admin/ingest` (ADMIN_TOKEN) · cron `0 14 * * *` UTC.
+
+Stripe billing routes exist but are dormant until STRIPE_SECRET_KEY /
+STRIPE_WEBHOOK_SECRET are set and a Price is created (do this when the free
+tier shows demand).
 
 ## KILL CRITERIA (fill in BEFORE deploying — non-negotiable)
 
@@ -9,7 +18,7 @@ Stamped from `templates/probe` by `npm run new-probe -- <name>`.
 
 - **Hypothesis:** Developers building commerce/logistics agents — and tooling vendors serving small importers — will pay for a dated, immutable, machine-readable changelog of US tariff/customs state (Section 232/301 actions, de-minimis rules, Federal Register notices), because the post-2026 regime changes weekly, models answer it stale, and the sources are public-domain (.gov) so the data is legally clean. Discovered via transactional SEO ("what changed in US tariffs this week", "is de minimis back") and MCP registry listings.
 - **Success signal by day 30 of launch:** ≥200 organic landing visits/week OR ≥5 free API keys created OR ≥1 paid key.
-- **Kill date:** deploy date + 45 days — set the concrete YYYY-MM-DD here on deploy day. If the signal is not met, archive the probe and write a 5-line post-mortem below.
+- **Kill date:** **2026-07-25** (deployed 2026-06-10). If the signal is not met, archive the probe and write a 5-line post-mortem below.
 - **Post-mortem:** _(empty until killed or graduated)_
 
 ## What's included

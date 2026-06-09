@@ -174,10 +174,8 @@ describe("stripe webhook + key claim", () => {
 		const rawKey = match?.[0] ?? "";
 
 		const before = await SELF.fetch(
-			new Request("https://example.com/v1/echo", {
-				method: "POST",
-				headers: { authorization: `Bearer ${rawKey}`, "content-type": "application/json" },
-				body: JSON.stringify({ message: "hi" }),
+			new Request("https://example.com/v1/changes", {
+				headers: { authorization: `Bearer ${rawKey}` },
 			}),
 		);
 		expect(before.status).toBe(200);
@@ -189,10 +187,8 @@ describe("stripe webhook + key claim", () => {
 		});
 
 		const after = await SELF.fetch(
-			new Request("https://example.com/v1/echo", {
-				method: "POST",
-				headers: { authorization: `Bearer ${rawKey}`, "content-type": "application/json" },
-				body: JSON.stringify({ message: "hi" }),
+			new Request("https://example.com/v1/changes", {
+				headers: { authorization: `Bearer ${rawKey}` },
 			}),
 		);
 		expect(after.status).toBe(401);
