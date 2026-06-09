@@ -8,9 +8,31 @@ Surfaces: `/` (SEO landing) · `/llms.txt` · `/snapshot/latest.md` ·
 `/snapshot/YYYY-MM-DD.md` · `POST /v1/keys` (free key) · `GET /v1/changes`
 (metered) · `POST /admin/ingest` (ADMIN_TOKEN) · cron `0 14 * * *` UTC.
 
-Stripe billing routes exist but are dormant until STRIPE_SECRET_KEY /
-STRIPE_WEBHOOK_SECRET are set and a Price is created (do this when the free
-tier shows demand).
+## Billing status (live Stripe account)
+
+Provisioned: product `prod_Ufv3u4IMaEiDeY` ("tariff-watch Pro"), price
+`price_1TgZDxRvagOb6JQr6AApWs1l` ($19/mo, wired into wrangler.jsonc).
+Two dashboard steps remain to activate checkout (~3 minutes):
+
+1. **Webhook**: Dashboard → Developers → Webhooks → Add endpoint
+   `https://tariff-watch.jaketdaniels95.workers.dev/webhooks/stripe`
+   with events `checkout.session.completed` + `customer.subscription.deleted`,
+   then: `wrangler secret put STRIPE_WEBHOOK_SECRET` (paste the whsec_…).
+   Keep the webhook on the workers.dev URL even after adding a custom domain —
+   it never changes.
+2. **Restricted key**: Dashboard → Developers → API keys → Create restricted
+   key with ONLY: Checkout Sessions (write) + Billing meter events (write),
+   then: `wrangler secret put STRIPE_SECRET_KEY` (paste the rk_live_…).
+
+Until both are set, /billing/checkout returns a clean
+`missing_configuration` error and everything else works.
+
+## Custom domain
+
+`tariff.watch` was available as of 2026-06-10 (RDAP-checked). After
+registering it in this Cloudflare account (Dashboard → Domain Registration),
+uncomment the `routes` block in wrangler.jsonc, set APP_BASE_URL to
+`https://tariff.watch`, and `npm run deploy`.
 
 ## KILL CRITERIA (fill in BEFORE deploying — non-negotiable)
 
