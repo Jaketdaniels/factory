@@ -1,0 +1,30 @@
+{
+	"name": "factory",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Probe factory: ship small Cloudflare Workers products fast, with metering, billing, and analytics built in",
+	"type": "module",
+	"workspaces": [
+		"core",
+		"templates/probe",
+		"probes/*"
+	],
+	"scripts": {
+		"lint": "biome check --write .",
+		"lint:ci": "biome ci .",
+		"typecheck": "npm run typecheck --workspaces --if-present",
+		"test": "npm run test --workspaces --if-present",
+		"dry-run": "npm run dry-run --workspaces --if-present",
+		"verify": "npm run lint && npm run typecheck && npm run test && npm run dry-run",
+		"new-probe": "node scripts/new-probe.mjs"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.16",
+		"@cloudflare/vitest-pool-workers": "^0.16.14",
+		"@cloudflare/workers-types": "^4.20260609.1",
+		"msw": "^2.14.6",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8",
+		"wrangler": "^4.99.0"
+	}
+}

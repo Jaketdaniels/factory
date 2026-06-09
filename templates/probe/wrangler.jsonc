@@ -1,0 +1,30 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "probe-template",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-06-09",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			// Create per probe: `wrangler d1 create <probe-name>` then paste the id here.
+			"database_name": "probe-template",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "migrations"
+		}
+	],
+	"vars": {
+		// Public, non-secret configuration only. Secrets (STRIPE_SECRET_KEY,
+		// STRIPE_WEBHOOK_SECRET) go in `.dev.vars` locally and
+		// `wrangler secret put <NAME>` in production — never here.
+		"APP_BASE_URL": "http://localhost:8787",
+		"STRIPE_PRICE_ID": "price_REPLACE_ME",
+		"PRO_MONTHLY_QUOTA": 10000
+	}
+	// Enable when the probe needs a daily job (snapshots, digests, alerts):
+	// "triggers": { "crons": ["0 6 * * *"] }
+}
