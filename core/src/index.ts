@@ -20,6 +20,7 @@ export {
 	type CheckoutSession,
 	type CheckoutSessionCompleted,
 	type CreateCheckoutSessionInput,
+	cancelSubscription,
 	checkoutSessionCompletedSchema,
 	createCheckoutSession,
 	type ReportMeterEventInput,

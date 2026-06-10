@@ -143,7 +143,6 @@ Free:
 - RSS feed for recent changes.
 - Effective-date calendar and `.ics` feed (shipped free: it is the launch
   artifact and a zero-support retention hook).
-- Lightweight API key with small quota.
 - MCP tool that exposes recent changes and source metadata.
 
 Pay as you go (adopted June 2026, replacing the flat Pro tier):
@@ -155,7 +154,9 @@ Pay as you go (adopted June 2026, replacing the flat Pro tier):
   quota repricing ever recurs.
 - Paying users never hit a hard 429; Stripe bills actual usage monthly.
   Reference points: 10k req/mo ≈ US$20, 100k ≈ US$200 (the TariffsAPI anchor).
-- Card-less free keys match at 30 requests/month as the evaluation tier.
+- No card-less keys: every key is provisioned through Stripe Checkout, so
+  every key is billable, receipted by email, and self-serve deletable
+  (key, usage records, and address) from the site or POST /account/delete.
 - Watchlists, email and webhook alerts, legal-status tracking, and CSV export
   ship into this same plan as they land — features raise usage, not price.
 

@@ -150,6 +150,9 @@ export interface CreateCheckoutSessionInput {
 	customerEmail?: string | undefined;
 	/** Usage-based (metered) prices reject `quantity` on line items. */
 	meteredPrice?: boolean | undefined;
+	/** Shown on the Checkout page above the pay button — use it to spell out
+	 * free allowances so a $0-due-today metered subscription is unambiguous. */
+	submitNote?: string | undefined;
 }
 
 /**
@@ -170,7 +173,30 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
 	if (input.customerEmail !== undefined) {
 		form.customer_email = input.customerEmail;
 	}
+	if (input.submitNote !== undefined) {
+		form["custom_text[submit][message]"] = input.submitNote;
+	}
 	return stripePost(input.secretKey, "/v1/checkout/sessions", form, checkoutSessionSchema);
+}
+
+/**
+ * Cancel a subscription immediately. Returns false instead of throwing when
+ * Stripe refuses (for example a restricted key without subscription write):
+ * callers use this in account-deletion flows that must succeed regardless,
+ * and a lingering metered subscription with no key accrues $0.
+ */
+export async function cancelSubscription(secretKey: string, subscriptionId: string): Promise<boolean> {
+	const response = await fetch(`${STRIPE_BASE_URL}/v1/subscriptions/${subscriptionId}`, {
+		method: "DELETE",
+		headers: {
+			authorization: `Bearer ${secretKey}`,
+			"stripe-version": STRIPE_API_VERSION,
+		},
+	});
+	if (!response.ok) {
+		console.error(JSON.stringify({ event: "stripe_cancel_failed", subscriptionId, status: response.status }));
+	}
+	return response.ok;
 }
 
 const meterEventSchema = z.object({ identifier: z.string().optional() });

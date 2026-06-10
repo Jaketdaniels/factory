@@ -77,7 +77,6 @@ pre { background: var(--surface); border: 1px solid var(--border); border-radius
 .doc > a { color: var(--text); text-decoration: none; }
 .doc > a:hover { color: var(--accent); }
 .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: baseline; }
-.plans { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .plan { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.65rem; }
 .plan.pro { border-color: rgba(210, 164, 76, 0.55); }
 .plan h3 { margin: 0; font-size: 1rem; }
@@ -95,7 +94,9 @@ button:active { transform: translateY(1px); }
 button:disabled { opacity: 0.55; cursor: default; }
 input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .error { color: var(--bad); font-size: 0.88rem; width: 100%; margin: 0.25rem 0 0; }
-.result { width: 100%; margin: 0.5rem 0 0; }
+.confirm { color: var(--good); font-size: 0.88rem; width: 100%; margin: 0.25rem 0 0; }
+.inline-form { display: flex; gap: 0.5rem; flex-wrap: wrap; max-width: 30rem; }
+.danger { background: var(--bad); color: #1d0e0a; }
 footer { margin-top: 4rem; padding-top: 1.4rem; border-top: 1px solid var(--border); font-size: 0.84rem; color: var(--muted); }
 footer p { margin: 0 0 0.5rem; }
 .imprint { font-family: var(--mono); font-size: 0.76rem; }
@@ -261,42 +262,33 @@ curl ${safeBase}/snapshot/latest.md
 curl ${safeBase}/feed.xml
 curl ${safeBase}/calendar.ics
 
-# Structured JSON
-curl -X POST -H "Content-Type: application/json" -d '{"email":"you@example.com"}' ${safeBase}/v1/keys
+# Structured JSON — get a key under Pricing (first ${freeQuota} requests/month free)
 curl -H "Authorization: Bearer &lt;your-key&gt;" "${safeBase}/v1/changes?since=2026-06-01"</pre>
 
 <h2 id="plans">Pricing</h2>
-<div class="plans">
-<section class="plan">
-<h3>Free</h3>
-<p class="price">$0 <small>no card</small></p>
-<ul>
-<li>Changelog, snapshots, RSS, calendar, MCP: no key needed, no limits</li>
-<li>JSON API: ${freeQuota} requests/month</li>
-<li>Key shown once at creation</li>
-</ul>
-<form id="freekey">
-<input id="email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for free API key">
-<button type="submit">Create key</button>
-<p class="error" id="freekey-error" role="alert" hidden></p>
-<pre class="result" id="freekey-result" hidden></pre>
-</form>
-</section>
 <section class="plan pro">
 <h3>Pay as you go</h3>
-<p class="price">US$2 <small>/ 1,000 requests</small></p>
+<p class="price">US$2 <small>/ 1,000 requests · first ${freeQuota} each month free</small></p>
 <ul>
-<li>First ${freeQuota} requests each month are free</li>
-<li>$0 due today; Stripe bills actual usage monthly</li>
-<li>No hard caps; cancel anytime and the key deactivates</li>
+<li>$0 due today; Stripe bills actual usage monthly, no hard caps, cancel anytime</li>
+<li>After checkout you return here to reveal your key (shown once), and a receipt lands in your inbox</li>
+<li>The changelog, snapshots, RSS, calendar, and MCP stay free with no key at all</li>
 </ul>
 <form id="pro">
-<input id="pro-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for pay-as-you-go checkout">
+<input id="pro-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for API key">
 <button type="submit">Add a card</button>
 <p class="error" id="pro-error" role="alert" hidden></p>
 </form>
 </section>
-</div>
+
+<h2 id="delete-data">Delete your key</h2>
+<p>Enter the email you signed up with. Your key, its usage records, and your address are deleted immediately, and your Stripe subscription is cancelled. This works any time, no questions asked.</p>
+<form id="delete" class="inline-form">
+<input id="delete-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email to delete">
+<button type="submit" class="danger">Delete key &amp; data</button>
+<p class="error" id="delete-error" role="alert" hidden></p>
+<p class="confirm" id="delete-result" role="status" hidden></p>
+</form>
 
 <h2 id="faq">Questions</h2>
 <div class="faq">
@@ -338,18 +330,18 @@ function wireForm(formId, errorId, onSubmit) {
     }
   });
 }
-wireForm("freekey", "freekey-error", async (form, button) => {
-  const res = await fetch("/v1/keys", {
+wireForm("delete", "delete-error", async (form, button) => {
+  const res = await fetch("/account/delete", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email: form.email.value }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message ?? "Key creation failed. Please try again.");
-  const resultEl = document.getElementById("freekey-result");
-  resultEl.textContent = "Your key (shown once, store it now):\\n" + data.key;
-  resultEl.hidden = false;
-  button.textContent = "Done";
+  if (!res.ok) throw new Error(data.error?.message ?? "Deletion failed. Please try again.");
+  const confirmEl = document.getElementById("delete-result");
+  confirmEl.textContent = data.message;
+  confirmEl.hidden = false;
+  button.textContent = "Deleted";
 });
 const copyBtn = document.getElementById("copy-md");
 copyBtn.addEventListener("click", async () => {
@@ -407,9 +399,10 @@ export function successPage(state: SuccessState): string {
 			return page(
 				"Your API key",
 				`<h1>Your API key</h1>
-<p>Store it now — for your security it is shown <strong>only once</strong>:</p>
+<p>Store it now — for your security it is shown <strong>only once</strong> and never emailed:</p>
 <pre>${escapeHtml(state.rawKey)}</pre>
-<p>Use it as <code>Authorization: Bearer &lt;key&gt;</code>.</p>`,
+<p>Use it as <code>Authorization: Bearer &lt;key&gt;</code>.</p>
+<p>A receipt is on its way to your inbox, including how to delete your key and data at any time.</p>`,
 			);
 		case "claimed-before":
 			return page(

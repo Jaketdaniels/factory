@@ -42,13 +42,16 @@ curl https://tariff.watch/calendar.ics
 # Dated snapshots are immutable once their day passes (point-in-time grounding)
 curl https://tariff.watch/snapshot/2026-06-09.md
 
-# Get an API key (shown once) — free tier: 30 requests/month
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"email":"you@example.com"}' https://tariff.watch/v1/keys
+# Get an API key: add a card at https://tariff.watch/#plans
+# ($0 due today; first 30 requests/month free, then US$2 per 1,000)
 
 # Structured changes since a date
 curl -H "Authorization: Bearer <your-key>" \
   "https://tariff.watch/v1/changes?since=2026-06-01&limit=50"
+
+# Delete your key and its data at any time
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com"}' https://tariff.watch/account/delete
 ```
 
 `GET /v1/changes` returns `{ since, count, results[], usage.remaining }`,

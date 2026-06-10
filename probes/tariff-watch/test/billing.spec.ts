@@ -1,4 +1,5 @@
 import { env, SELF } from "cloudflare:test";
+import { createApiKey } from "@factory/core";
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -37,6 +38,45 @@ function claimRequest(sessionId: string): Request {
 		body: new URLSearchParams({ session_id: sessionId }).toString(),
 	});
 }
+
+describe("account deletion cancels billing", () => {
+	const server = setupServer();
+
+	beforeAll(() => {
+		server.listen({ onUnhandledRequest: "error" });
+	});
+	afterEach(() => {
+		server.resetHandlers();
+	});
+	afterAll(() => {
+		server.close();
+	});
+	beforeEach(clearTables);
+
+	it("calls Stripe to cancel the subscription tied to a deleted key", async () => {
+		let cancelled = "";
+		server.use(
+			http.delete("https://api.stripe.com/v1/subscriptions/sub_del_1", () => {
+				cancelled = "sub_del_1";
+				return HttpResponse.json({ id: "sub_del_1", status: "canceled" });
+			}),
+		);
+		await createApiKey(env.DB, {
+			plan: "pro",
+			monthlyQuota: 1000000,
+			email: "payer@example.com",
+			stripeSubscriptionId: "sub_del_1",
+		});
+		const res = await SELF.fetch("https://example.com/account/delete", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ email: "payer@example.com" }),
+		});
+		expect(res.status).toBe(200);
+		expect(cancelled).toBe("sub_del_1");
+		expect((await env.DB.prepare("SELECT id FROM api_keys").all()).results).toHaveLength(0);
+	});
+});
 
 describe("checkout", () => {
 	const server = setupServer();

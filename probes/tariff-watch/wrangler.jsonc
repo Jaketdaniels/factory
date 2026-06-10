@@ -31,6 +31,9 @@
 		"PRO_MONTHLY_QUOTA": 1000000,
 		"FREE_MONTHLY_QUOTA": 30
 	},
+	// Transactional email (key receipts) via Cloudflare Email Service; the
+	// sender domain netm8.com is onboarded for Email Sending on this account.
+	"send_email": [{ "name": "EMAIL" }],
 	// Daily ingest at 14:00 UTC — after the Federal Register's ~6am ET publication.
 	"triggers": { "crons": ["0 14 * * *"] },
 	// Custom domain (uncomment after registering tariff.watch in this Cloudflare

@@ -60,6 +60,8 @@ describe("public surfaces", () => {
 		expect(html).toContain("Comments due");
 		expect(html).toContain('id="pro"');
 		expect(html).toContain("/billing/checkout");
+		expect(html).toContain('id="delete-data"');
+		expect(html).not.toContain("freekey");
 		// Real domain in the examples, never a placeholder.
 		expect(html).toContain("https://tariff.watch/snapshot/latest.md");
 		expect(html).not.toContain("this-domain");
@@ -228,22 +230,21 @@ describe("public surfaces", () => {
 	});
 });
 
-describe("free keys + changes API", () => {
+describe("keys + changes API", () => {
 	beforeEach(clearTables);
 
-	it("issues a free key once and serves changes with it", async () => {
+	it("serves changes to an authorized key; card-less provisioning is gone", async () => {
 		await seedDocument("2026-22222", "2026-06-08");
-		const keyRes = await SELF.fetch("https://example.com/v1/keys", {
+		// Keys are provisioned only through Stripe Checkout now.
+		const removed = await SELF.fetch("https://example.com/v1/keys", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ email: "dev@example.com" }),
 		});
-		expect(keyRes.status).toBe(201);
-		const created = (await keyRes.json()) as { key: string; monthly_quota: number };
-		expect(created.key).toMatch(/^fk_/);
-		expect(created.monthly_quota).toBe(30);
+		expect(removed.status).toBe(404);
 
-		const changes = await SELF.fetch(changesRequest(created.key, "?since=2026-06-01"));
+		const { rawKey } = await createApiKey(env.DB, { plan: "pro", monthlyQuota: 1000000, email: "dev@example.com" });
+		const changes = await SELF.fetch(changesRequest(rawKey, "?since=2026-06-01"));
 		expect(changes.status).toBe(200);
 		const body = (await changes.json()) as {
 			count: number;
@@ -298,6 +299,49 @@ describe("free keys + changes API", () => {
 		const { rawKey } = await createApiKey(env.DB, { plan: "free", monthlyQuota: 1 });
 		expect((await SELF.fetch(changesRequest(rawKey))).status).toBe(200);
 		expect((await SELF.fetch(changesRequest(rawKey))).status).toBe(429);
+	});
+});
+
+describe("account deletion", () => {
+	beforeEach(clearTables);
+
+	function deleteRequest(body: unknown): Promise<Response> {
+		return SELF.fetch("https://example.com/account/delete", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body),
+		});
+	}
+
+	it("deletes keys, usage, and reservations, and answers unknown emails identically", async () => {
+		await seedDocument("2026-33333", "2026-06-08");
+		const created = await createApiKey(env.DB, { plan: "pro", monthlyQuota: 1000000, email: "del@example.com" });
+		await SELF.fetch(changesRequest(created.rawKey));
+		await env.DB.prepare(
+			"INSERT INTO provisioned_keys (checkout_session_id, email, key_id) VALUES ('cs_del', 'del@example.com', ?)",
+		)
+			.bind(created.id)
+			.run();
+
+		const res = await deleteRequest({ email: "del@example.com" });
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { deleted: boolean; message: string };
+		expect(body.deleted).toBe(true);
+
+		expect((await env.DB.prepare("SELECT id FROM api_keys").all()).results).toHaveLength(0);
+		expect((await env.DB.prepare("SELECT id FROM usage_events").all()).results).toHaveLength(0);
+		expect((await env.DB.prepare("SELECT checkout_session_id FROM provisioned_keys").all()).results).toHaveLength(0);
+		// The deleted key no longer authenticates.
+		expect((await SELF.fetch(changesRequest(created.rawKey))).status).toBe(401);
+
+		// Unknown address: byte-identical response, no email enumeration.
+		const unknown = await deleteRequest({ email: "never-seen@example.com" });
+		expect(unknown.status).toBe(200);
+		expect(await unknown.json()).toEqual(body);
+	});
+
+	it("rejects malformed bodies", async () => {
+		expect((await deleteRequest({ email: "not-an-email" })).status).toBe(400);
 	});
 });
 

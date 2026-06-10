@@ -1,5 +1,6 @@
 import {
 	type CheckoutSessionCompleted,
+	cancelSubscription,
 	checkoutSessionCompletedSchema,
 	createApiKey,
 	createCheckoutSession,
@@ -18,6 +19,7 @@ import {
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
+import { sendKeyCreatedEmail } from "./email";
 import { renderCalendar, renderRssFeed } from "./feeds";
 import { isoDate, runIngest } from "./ingest";
 import { type LandingDoc, landingPage, successPage } from "./landing";
@@ -31,7 +33,7 @@ type AppEnv = {
 
 const checkoutBodySchema = z.object({ email: z.string().email() });
 const sessionIdSchema = z.object({ session_id: z.string().min(1) });
-const freeKeyBodySchema = z.object({ email: z.string().email() });
+const deleteBodySchema = z.object({ email: z.string().email() });
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const changesQuerySchema = z.object({
 	since: z.string().regex(DATE_PATTERN, "Use YYYY-MM-DD").optional(),
@@ -150,10 +152,11 @@ const app = new Hono<AppEnv>()
 - [RSS feed](/feed.xml): source-linked changes with program, status, and date metadata.
 - [Calendar feed](/calendar.ics): effective dates, comment deadlines, and hearings.
 
-## JSON API (free key)
+## JSON API
 
-- POST /v1/keys with {"email": "..."} returns an API key (shown once).
+- Get a key: add a card at /#plans (Stripe Checkout, $0 due today; the first 30 requests each month are free, then US$2 per 1,000, billed monthly for actual usage). The key is shown once.
 - GET /v1/changes?since=YYYY-MM-DD&limit=50 with "Authorization: Bearer <key>" returns structured documents: number, title, type, abstract, publication date, agencies, program, legal status, effective dates, confidence, and primary-source URL.
+- Delete your key and its data: POST /account/delete with {"email": "..."}.
 
 ## MCP
 
@@ -224,16 +227,34 @@ Every fact links to its primary federalregister.gov document.
 		return c.body(z.object({ markdown: z.string() }).parse(row).markdown);
 	})
 
-	// Self-serve free key (quota via FREE_MONTHLY_QUOTA). Returned exactly once.
-	.post("/v1/keys", zValidator("json", freeKeyBodySchema), async (c) => {
+	// Self-serve deletion: enter the signup email and the key(s), usage
+	// records, and address are removed; any Stripe subscription is cancelled.
+	// The response is identical whether or not the address had keys, so the
+	// endpoint can't be used to probe which emails are customers.
+	.post("/account/delete", zValidator("json", deleteBodySchema), async (c) => {
 		const { email } = c.req.valid("json");
-		const created = await createApiKey(c.env.DB, {
-			plan: "free",
-			monthlyQuota: c.env.FREE_MONTHLY_QUOTA,
-			email,
+		const { results } = await c.env.DB.prepare("SELECT id, stripe_subscription_id FROM api_keys WHERE email = ?")
+			.bind(email)
+			.all();
+		const keys = z.array(z.object({ id: z.string(), stripe_subscription_id: z.string().nullable() })).parse(results);
+		const stripeEnv = z.object({ STRIPE_SECRET_KEY: z.string().min(1).optional() }).parse(c.env);
+		for (const key of keys) {
+			if (key.stripe_subscription_id !== null && stripeEnv.STRIPE_SECRET_KEY !== undefined) {
+				await cancelSubscription(stripeEnv.STRIPE_SECRET_KEY, key.stripe_subscription_id);
+			}
+			await c.env.DB.prepare("DELETE FROM usage_events WHERE key_id = ?").bind(key.id).run();
+		}
+		await c.env.DB.prepare(
+			"DELETE FROM provisioned_keys WHERE email = ? OR key_id IN (SELECT id FROM api_keys WHERE email = ?)",
+		)
+			.bind(email, email)
+			.run();
+		await c.env.DB.prepare("DELETE FROM api_keys WHERE email = ?").bind(email).run();
+		c.executionCtx.waitUntil(track(c.env.DB, "account_deleted"));
+		return c.json({
+			deleted: true,
+			message: "If a key existed for that address, the key, its usage records, and the address are now deleted.",
 		});
-		c.executionCtx.waitUntil(track(c.env.DB, "free_key_created"));
-		return c.json({ key: created.rawKey, plan: "free", monthly_quota: c.env.FREE_MONTHLY_QUOTA }, 201);
 	})
 
 	// Structured changes feed. Validator runs BEFORE metered() so malformed
@@ -285,6 +306,7 @@ Every fact links to its primary federalregister.gov document.
 			cancelUrl: `${c.env.APP_BASE_URL}/`,
 			customerEmail: email,
 			meteredPrice: true,
+			submitNote: `The first ${c.env.FREE_MONTHLY_QUOTA} requests each month are free. Beyond that, US$2 per 1,000 requests, billed monthly for actual usage. $0 is due today.`,
 		});
 		c.executionCtx.waitUntil(track(c.env.DB, "checkout_started"));
 		return c.json({ url: session.url });
@@ -352,6 +374,10 @@ Every fact links to its primary federalregister.gov document.
 				.bind(created.id, session_id)
 				.run();
 			c.executionCtx.waitUntil(track(c.env.DB, "key_claimed"));
+			// Receipt + standing deletion offer; the raw key is never emailed.
+			if (provisioned.email !== null) {
+				c.executionCtx.waitUntil(sendKeyCreatedEmail(c.env, provisioned.email));
+			}
 			// Rendered straight from memory — the raw key never touches storage.
 			return c.html(successPage({ kind: "revealed", rawKey: created.rawKey }));
 		} catch (err) {

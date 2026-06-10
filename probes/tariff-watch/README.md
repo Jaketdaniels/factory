@@ -40,13 +40,17 @@ needs to prove what was known on a given date.
 ### JSON API
 
 ```sh
-# Get a key (shown once) — free tier: 30 requests/month
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"email":"you@example.com"}' https://tariff.watch/v1/keys
+# Get a key: add a card at https://tariff.watch/#plans (Stripe Checkout,
+# $0 due today; first 30 requests/month free, then US$2 per 1,000).
+# The key is shown once in the browser and never emailed.
 
 # Query structured changes
 curl -H "Authorization: Bearer <your-key>" \
   "https://tariff.watch/v1/changes?since=2026-06-01&limit=50"
+
+# Delete your key and its data (also cancels the Stripe subscription)
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com"}' https://tariff.watch/account/delete
 ```
 
 Response fields: `document_number`, `title`, `type`, `abstract`,
