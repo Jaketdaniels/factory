@@ -36,8 +36,9 @@ function page(title: string, body: string): string {
 	--mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); max-width: 50rem; margin: 0 auto; padding: 2.25rem 1.25rem 4rem; line-height: 1.65; }
+/* No scroll-behavior:smooth — browsers with smooth scrolling disabled
+   silently drop the scroll entirely, breaking anchor navigation. */
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); max-width: 44rem; margin: 0 auto; padding: 2.25rem 1.25rem 4rem; line-height: 1.65; }
 .site { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.75rem; }
 .wordmark { font-family: var(--mono); font-weight: 600; font-size: 1.05rem; color: var(--text); text-decoration: none; }
 .wordmark span { color: var(--accent); }
@@ -45,16 +46,11 @@ body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background
 .site nav a { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
 .site nav a:hover { color: var(--text); }
 h1 { font-size: clamp(1.8rem, 5vw, 2.3rem); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 1.1rem; text-wrap: balance; }
-.hero { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 2.25rem; align-items: start; }
-.quickstart { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.15rem 1.25rem; display: flex; flex-direction: column; gap: 0.55rem; font-size: 0.88rem; }
-.qs-head { margin: 0 0 0.2rem; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-.quickstart a { text-decoration: none; }
-.quickstart .sep { border: 0; border-top: 1px solid var(--border); margin: 0.45rem 0; width: 100%; }
-.quickstart p { margin: 0; color: var(--muted); }
-.quickstart .price-line strong { color: var(--text); }
-.btn { display: inline-block; align-self: flex-start; font-weight: 600; background: var(--accent); color: #1b1607; border-radius: 6px; padding: 0.45rem 0.9rem; text-decoration: none; transition: filter 0.15s ease, transform 0.1s ease; margin-top: 0.3rem; }
-.btn:hover { filter: brightness(1.1); color: #1b1607; }
-.btn:active { transform: translateY(1px); }
+.meta-links { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 1.25rem 0 0; }
+.meta-link { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--muted); font: inherit; font-size: 0.9rem; text-decoration: none; background: none; border: none; padding: 0; cursor: pointer; transition: color 0.15s ease; }
+.meta-link:hover { color: var(--text); }
+.meta-link svg { flex: none; }
+.meta-sep { width: 1px; height: 1.05rem; background: var(--border); }
 h2 { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 3.25rem 0 1rem; }
 .lede { font-size: 1.05rem; max-width: 60ch; }
 a { color: var(--accent); text-underline-offset: 3px; transition: color 0.15s ease; }
@@ -103,16 +99,12 @@ input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid 
 footer { margin-top: 4rem; padding-top: 1.4rem; border-top: 1px solid var(--border); font-size: 0.84rem; color: var(--muted); }
 footer p { margin: 0 0 0.5rem; }
 .imprint { font-family: var(--mono); font-size: 0.76rem; }
-@media (max-width: 760px) {
-	.hero { grid-template-columns: 1fr; gap: 1.25rem; }
-}
 @media (max-width: 640px) {
 	.plans, .faq { grid-template-columns: 1fr; }
 	.deadline a { white-space: normal; }
 }
 @media (prefers-reduced-motion: reduce) {
 	* { transition: none !important; }
-	html { scroll-behavior: auto; }
 }
 </style>
 </head>
@@ -243,22 +235,18 @@ ${dates.length > 0 ? `<span>${dates.join(" · ")}</span>` : ""}
 
 	return page(
 		"tariff.watch — daily US tariff & trade-action changelog",
-		`<div class="hero">
-<div>
-<h1>What changed in US tariffs today</h1>
-<p class="lede">US trade policy changes weekly: Section 232 and 301 actions, de-minimis rules, exclusion lists, antidumping orders, forced-labor measures. tariff.watch reads every trade-relevant Federal Register document daily and records each change with its legal status, effective date, and a link to the primary source.</p>
-</div>
-<aside class="quickstart" aria-label="Quick start for agents and developers">
-<p class="qs-head">Agents start here</p>
-<a href="/snapshot/latest.md"><code>GET /snapshot/latest.md</code></a>
-<a href="/llms.txt"><code>GET /llms.txt</code></a>
-<a href="/calendar.ics"><code>GET /calendar.ics</code></a>
-<code>POST /mcp</code>
-<hr class="sep">
-<p class="price-line"><strong>JSON API</strong> · free key, ${freeQuota} requests/month<br>
-<strong>Pro</strong> · A$3/month, 10,000 requests/month</p>
-<a class="btn" href="#plans">Get a key</a>
-</aside>
+		`<h1>What changed in US tariffs today</h1>
+<p class="lede">US trade policy changes weekly: Section 232 and 301 actions, de-minimis rules, exclusion lists, antidumping orders, forced-labor measures. tariff.watch reads every trade-relevant Federal Register document daily and records each change with its legal status, effective date, and a link to the primary source. Humans get this changelog; agents get immutable Markdown snapshots, feeds, and a JSON API.</p>
+<div class="meta-links">
+<button type="button" class="meta-link" id="copy-md">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+<span>Copy as markdown</span>
+</button>
+<span class="meta-sep" aria-hidden="true"></span>
+<a class="meta-link" href="#plans">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="16" r="4"/><path d="m11 13 9-9"/><path d="m16 5 3 3"/></svg>
+<span>Get an API key</span>
+</a>
 </div>
 
 ${deadlineList}
@@ -362,6 +350,19 @@ wireForm("freekey", "freekey-error", async (form, button) => {
   resultEl.textContent = "Your key (shown once, store it now):\\n" + data.key;
   resultEl.hidden = false;
   button.textContent = "Done";
+});
+const copyBtn = document.getElementById("copy-md");
+copyBtn.addEventListener("click", async () => {
+  const label = copyBtn.querySelector("span");
+  try {
+    const res = await fetch("/snapshot/latest.md");
+    if (!res.ok) throw new Error();
+    await navigator.clipboard.writeText(await res.text());
+    label.textContent = "Copied";
+  } catch {
+    label.textContent = "Copy failed";
+  }
+  setTimeout(() => { label.textContent = "Copy as markdown"; }, 2000);
 });
 wireForm("pro", "pro-error", async (form) => {
   const res = await fetch("/billing/checkout", {
