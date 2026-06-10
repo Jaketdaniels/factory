@@ -284,6 +284,7 @@ Every fact links to its primary federalregister.gov document.
 			successUrl: `${c.env.APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
 			cancelUrl: `${c.env.APP_BASE_URL}/`,
 			customerEmail: email,
+			meteredPrice: true,
 		});
 		c.executionCtx.waitUntil(track(c.env.DB, "checkout_started"));
 		return c.json({ url: session.url });

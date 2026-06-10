@@ -269,9 +269,9 @@ curl -H "Authorization: Bearer &lt;your-key&gt;" "${safeBase}/v1/changes?since=2
 <div class="plans">
 <section class="plan">
 <h3>Free</h3>
-<p class="price">A$0 <small>forever</small></p>
+<p class="price">$0 <small>no card</small></p>
 <ul>
-<li>Changelog, snapshots, RSS, calendar, MCP: no key needed</li>
+<li>Changelog, snapshots, RSS, calendar, MCP: no key needed, no limits</li>
 <li>JSON API: ${freeQuota} requests/month</li>
 <li>Key shown once at creation</li>
 </ul>
@@ -283,16 +283,16 @@ curl -H "Authorization: Bearer &lt;your-key&gt;" "${safeBase}/v1/changes?since=2
 </form>
 </section>
 <section class="plan pro">
-<h3>Pro</h3>
-<p class="price">A$3 <small>/ month</small></p>
+<h3>Pay as you go</h3>
+<p class="price">US$2 <small>/ 1,000 requests</small></p>
 <ul>
-<li>10,000 JSON API requests/month</li>
-<li>Same data, same endpoints, more headroom</li>
-<li>Cancel anytime in Stripe; the key deactivates with the subscription</li>
+<li>First ${freeQuota} requests each month are free</li>
+<li>$0 due today; Stripe bills actual usage monthly</li>
+<li>No hard caps; cancel anytime and the key deactivates</li>
 </ul>
 <form id="pro">
-<input id="pro-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for Pro checkout">
-<button type="submit">Upgrade</button>
+<input id="pro-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for pay-as-you-go checkout">
+<button type="submit">Add a card</button>
 <p class="error" id="pro-error" role="alert" hidden></p>
 </form>
 </section>

@@ -241,7 +241,7 @@ describe("free keys + changes API", () => {
 		expect(keyRes.status).toBe(201);
 		const created = (await keyRes.json()) as { key: string; monthly_quota: number };
 		expect(created.key).toMatch(/^fk_/);
-		expect(created.monthly_quota).toBe(250);
+		expect(created.monthly_quota).toBe(30);
 
 		const changes = await SELF.fetch(changesRequest(created.key, "?since=2026-06-01"));
 		expect(changes.status).toBe(200);

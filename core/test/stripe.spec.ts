@@ -82,6 +82,27 @@ describe("stripe REST calls", () => {
 		expect(capturedBody).not.toContain("payment_method_types");
 	});
 
+	it("omits line-item quantity for metered (usage-based) prices", async () => {
+		let capturedBody = "";
+		server.use(
+			http.post("https://api.stripe.com/v1/checkout/sessions", async ({ request }) => {
+				capturedBody = new TextDecoder().decode(await request.arrayBuffer());
+				return HttpResponse.json({ id: "cs_test_2", url: "https://checkout.stripe.com/c/cs_test_2" });
+			}),
+		);
+
+		await createCheckoutSession({
+			secretKey: "rk_test_dummy",
+			priceId: "price_metered",
+			successUrl: "https://example.com/s",
+			cancelUrl: "https://example.com/",
+			meteredPrice: true,
+		});
+		const params = new URLSearchParams(capturedBody);
+		expect(params.get("line_items[0][price]")).toBe("price_metered");
+		expect(capturedBody).not.toContain("quantity");
+	});
+
 	it("reports billing meter events", async () => {
 		let capturedBody = "";
 		server.use(

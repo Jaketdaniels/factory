@@ -146,13 +146,18 @@ Free:
 - Lightweight API key with small quota.
 - MCP tool that exposes recent changes and source metadata.
 
-Pro at $19/month once watchlists ship:
+Pay as you go (adopted June 2026, replacing the flat Pro tier):
 
-- HTS chapter, country, agency, and program watchlists.
-- Email and webhook alerts.
-- Legal-status tracker for Section 122, Section 301, Section 232, IEEPA-related
-  rulings, exclusions, and forced-labor actions.
-- CSV export for brokers, consultants, and compliance operators.
+- $0/month base on a card-on-file subscription. The first 30 API requests
+  each month are free (one call per org per day), then US$2.00 per 1,000.
+  Implemented as one Stripe graduated tiered price on a Billing Meter — the
+  free allowance is tier one at $0, so Stripe computes every invoice and no
+  quota repricing ever recurs.
+- Paying users never hit a hard 429; Stripe bills actual usage monthly.
+  Reference points: 10k req/mo ≈ US$20, 100k ≈ US$200 (the TariffsAPI anchor).
+- Card-less free keys match at 30 requests/month as the evaluation tier.
+- Watchlists, email and webhook alerts, legal-status tracking, and CSV export
+  ship into this same plan as they land — features raise usage, not price.
 
 Team or reseller later:
 

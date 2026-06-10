@@ -148,6 +148,8 @@ export interface CreateCheckoutSessionInput {
 	successUrl: string;
 	cancelUrl: string;
 	customerEmail?: string | undefined;
+	/** Usage-based (metered) prices reject `quantity` on line items. */
+	meteredPrice?: boolean | undefined;
 }
 
 /**
@@ -159,10 +161,12 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
 	const form: Record<string, string> = {
 		mode: "subscription",
 		"line_items[0][price]": input.priceId,
-		"line_items[0][quantity]": "1",
 		success_url: input.successUrl,
 		cancel_url: input.cancelUrl,
 	};
+	if (input.meteredPrice !== true) {
+		form["line_items[0][quantity]"] = "1";
+	}
 	if (input.customerEmail !== undefined) {
 		form.customer_email = input.customerEmail;
 	}

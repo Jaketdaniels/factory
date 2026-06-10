@@ -135,7 +135,7 @@ describe("stripe webhook + key claim", () => {
 		expect(keys.results).toHaveLength(1);
 		expect(keys.results[0]).toMatchObject({
 			plan: "pro",
-			monthly_quota: 10000,
+			monthly_quota: 1000000,
 			stripe_subscription_id: "sub_test_1",
 		});
 	});

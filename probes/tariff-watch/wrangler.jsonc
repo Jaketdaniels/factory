@@ -22,9 +22,14 @@
 		// STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN) go in `.dev.vars` locally and
 		// `wrangler secret put <NAME>` in production — never here.
 		"APP_BASE_URL": "https://tariff.watch",
-		"STRIPE_PRICE_ID": "price_1TgkbZRtNOtWEuKveWh7MY3Z",
-		"PRO_MONTHLY_QUOTA": 10000,
-		"FREE_MONTHLY_QUOTA": 250
+		// Pay as you go: graduated metered price (first 30 req/mo free, then
+		// US$2 per 1,000) on the tariff_watch_requests billing meter.
+		"STRIPE_PRICE_ID": "price_1TgqQ8RtNOtWEuKvqiuGX593",
+		"STRIPE_METER_EVENT_NAME": "tariff_watch_requests",
+		// Pay-as-you-go keys are billed by the meter, never quota-blocked;
+		// this quota is an abuse ceiling only.
+		"PRO_MONTHLY_QUOTA": 1000000,
+		"FREE_MONTHLY_QUOTA": 30
 	},
 	// Daily ingest at 14:00 UTC — after the Federal Register's ~6am ET publication.
 	"triggers": { "crons": ["0 14 * * *"] },

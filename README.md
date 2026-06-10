@@ -42,7 +42,7 @@ curl https://tariff.watch/calendar.ics
 # Dated snapshots are immutable once their day passes (point-in-time grounding)
 curl https://tariff.watch/snapshot/2026-06-09.md
 
-# Get an API key (shown once) — free tier: 250 requests/month
+# Get an API key (shown once) — free tier: 30 requests/month
 curl -X POST -H "Content-Type: application/json" \
   -d '{"email":"you@example.com"}' https://tariff.watch/v1/keys
 
@@ -56,8 +56,9 @@ where each result has `document_number`, `title`, `type`, `abstract`,
 `publication_date`, `agencies[]`, `program`, `legal_status`, `effective_on`,
 `comments_close_on`, `hearing_on`, `confidence`, and the primary-source `url`.
 Errors are structured JSON (`{ "error": { "code": "...", "message": "..." } }`);
-quota exhaustion is a `429 quota_exceeded`. A Pro tier (10,000 requests/month,
-A$3/mo) is available from the landing page.
+quota exhaustion on free keys is a `429 quota_exceeded`. Pay as you go is
+available from the landing page: first 30 requests/month free, then US$2 per
+1,000, billed monthly for actual usage.
 
 Full product documentation: [probes/tariff-watch](probes/tariff-watch/README.md).
 

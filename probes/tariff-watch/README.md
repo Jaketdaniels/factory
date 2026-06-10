@@ -40,7 +40,7 @@ needs to prove what was known on a given date.
 ### JSON API
 
 ```sh
-# Get a key (shown once) — free tier: 250 requests/month
+# Get a key (shown once) — free tier: 30 requests/month
 curl -X POST -H "Content-Type: application/json" \
   -d '{"email":"you@example.com"}' https://tariff.watch/v1/keys
 
@@ -52,8 +52,9 @@ curl -H "Authorization: Bearer <your-key>" \
 Response fields: `document_number`, `title`, `type`, `abstract`,
 `publication_date`, `agencies[]`, `program`, `legal_status`, `effective_on`,
 `comments_close_on`, `hearing_on`, `confidence`, and the primary-source `url`.
-A Pro tier (10,000 requests/month, A$3/mo) is available via
-`POST /billing/checkout`.
+Pay as you go via `POST /billing/checkout`: $0/month base, first 30
+requests each month free, then US$2 per 1,000 — billed monthly for actual
+usage (Stripe Billing Meters; no hard caps).
 
 ### MCP
 
