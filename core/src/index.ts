@@ -15,7 +15,7 @@ export {
 	sha256Hex,
 } from "./keys";
 export { checkQuota, monthlyUsage, type QuotaCheck, recordUsage } from "./meter";
-export { getStripeSecrets, type StripeSecrets } from "./secrets";
+export { getStripeSecrets, getWebhookSecret, type StripeSecrets } from "./secrets";
 export {
 	type CheckoutSession,
 	type CheckoutSessionCompleted,

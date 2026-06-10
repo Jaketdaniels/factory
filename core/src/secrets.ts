@@ -20,3 +20,17 @@ export function getStripeSecrets(env: unknown): StripeSecrets {
 	}
 	return parsed.data;
 }
+
+/**
+ * Webhook routes must keep working even when the checkout key is absent —
+ * signature verification only ever needs the endpoint's signing secret.
+ */
+const webhookSecretSchema = z.object({ STRIPE_WEBHOOK_SECRET: z.string().min(1) });
+
+export function getWebhookSecret(env: unknown): string {
+	const parsed = webhookSecretSchema.safeParse(env);
+	if (!parsed.success) {
+		throw new ApiError(500, "missing_configuration", "Webhooks are not configured on this deployment.");
+	}
+	return parsed.data.STRIPE_WEBHOOK_SECRET;
+}

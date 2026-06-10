@@ -6,7 +6,7 @@ set -euo pipefail
 #
 #  1. STRIPE_WEBHOOK_SECRET (whsec_…)
 #     https://dashboard.stripe.com/webhooks -> Add destination/endpoint
-#       URL:    https://tariff-watch.jaketdaniels95.workers.dev/webhooks/stripe
+#       URL:    https://tariff.watch/webhooks/stripe
 #       Events: checkout.session.completed, customer.subscription.deleted
 #     Copy the signing secret shown after creation.
 #

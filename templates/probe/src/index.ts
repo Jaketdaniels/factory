@@ -5,6 +5,7 @@ import {
 	createCheckoutSession,
 	errorBody,
 	getStripeSecrets,
+	getWebhookSecret,
 	type MeteredVariables,
 	metered,
 	onApiError,
@@ -165,8 +166,8 @@ const app = new Hono<AppEnv>()
 
 	.post("/webhooks/stripe", async (c) => {
 		const rawBody = await c.req.text();
-		const secrets = getStripeSecrets(c.env);
-		const valid = await verifyStripeSignature(rawBody, c.req.header("stripe-signature"), secrets.STRIPE_WEBHOOK_SECRET);
+		const webhookSecret = getWebhookSecret(c.env);
+		const valid = await verifyStripeSignature(rawBody, c.req.header("stripe-signature"), webhookSecret);
 		if (!valid) {
 			return c.json(errorBody("invalid_signature", "Webhook signature verification failed."), 400);
 		}
