@@ -1,100 +1,104 @@
-# tariff-watch
+# tariff.watch
 
-**Live:** https://tariff-watch.jaketdaniels95.workers.dev — daily facts-only
-changelog of US tariff/customs/trade actions from the Federal Register (public
-domain), served as HTML, immutable Markdown snapshots, and a metered JSON API.
+**Live: https://tariff.watch** — a daily, facts-only changelog of US tariff,
+customs, and trade-action changes, built for both humans and AI agents.
 
-Surfaces: `/` (SEO landing) · `/llms.txt` · `/snapshot/latest.md` ·
-`/snapshot/YYYY-MM-DD.md` · `POST /v1/keys` (free key) · `GET /v1/changes`
-(metered) · `POST /admin/ingest` (ADMIN_TOKEN) · cron `0 14 * * *` UTC.
+US trade policy now changes weekly — Section 232/301 actions, de-minimis
+rules, exclusion lists, antidumping orders. Language models answer with stale
+data, and reading the Federal Register yourself takes hours. tariff.watch
+ingests every trade-relevant federal publication daily (USTR, CBP, the
+International Trade Administration, the International Trade Commission, the
+Bureau of Industry and Security, the Foreign-Trade Zones Board, plus
+presidential tariff documents) and publishes:
 
-## Billing status (live Stripe account)
+- a human-readable changelog at [tariff.watch](https://tariff.watch)
+- **immutable, dated Markdown snapshots** for LLM/agent grounding
+- a **structured JSON API** with API keys and monthly quotas
 
-Provisioned: product `prod_Ufv3u4IMaEiDeY` ("tariff-watch Pro"), price
-`price_1TgZDxRvagOb6JQr6AApWs1l` ($19/mo, wired into wrangler.jsonc).
-Two dashboard steps remain to activate checkout (~3 minutes):
+Every entry links to its primary federalregister.gov document. No third-party
+text is reproduced: US government works are public domain (17 U.S.C. §105),
+and all summaries are our own.
 
-1. **Webhook**: Dashboard → Developers → Webhooks → Add endpoint
-   `https://tariff-watch.jaketdaniels95.workers.dev/webhooks/stripe`
-   with events `checkout.session.completed` + `customer.subscription.deleted`,
-   then: `wrangler secret put STRIPE_WEBHOOK_SECRET` (paste the whsec_…).
-   Keep the webhook on the workers.dev URL even after adding a custom domain —
-   it never changes.
-2. **Restricted key**: Dashboard → Developers → API keys → Create restricted
-   key with ONLY: Checkout Sessions (write) + Billing meter events (write),
-   then: `wrangler secret put STRIPE_SECRET_KEY` (paste the rk_live_…).
+## Using it
 
-Until both are set, /billing/checkout returns a clean
-`missing_configuration` error and everything else works.
-
-## Custom domain
-
-`tariff.watch` was available as of 2026-06-10 (RDAP-checked). After
-registering it in this Cloudflare account (Dashboard → Domain Registration),
-uncomment the `routes` block in wrangler.jsonc, set APP_BASE_URL to
-`https://tariff.watch`, and `npm run deploy`.
-
-## KILL CRITERIA (fill in BEFORE deploying — non-negotiable)
-
-> A probe without pre-committed kill criteria is a zombie, not an experiment.
-
-- **Hypothesis:** Developers building commerce/logistics agents — and tooling vendors serving small importers — will pay for a dated, immutable, machine-readable changelog of US tariff/customs state (Section 232/301 actions, de-minimis rules, Federal Register notices), because the post-2026 regime changes weekly, models answer it stale, and the sources are public-domain (.gov) so the data is legally clean. Discovered via transactional SEO ("what changed in US tariffs this week", "is de minimis back") and MCP registry listings.
-- **Success signal by day 30 of launch:** ≥200 organic landing visits/week OR ≥5 free API keys created OR ≥1 paid key.
-- **Kill date:** **2026-07-25** (deployed 2026-06-10). If the signal is not met, archive the probe and write a 5-line post-mortem below.
-- **Post-mortem:** _(empty until killed or graduated)_
-
-## What's included
-
-- `GET /` landing page (replace with the probe's pitch) with self-hosted analytics
-- `POST /v1/echo` example metered endpoint — API-key auth, monthly quota, 429s, usage events
-  (validators run before metering, so rejected requests are never billed)
-- `POST /billing/checkout` Stripe Checkout (subscription mode) → `GET /billing/success`
-  → explicit `POST /billing/claim` one-time key reveal (atomic claim; the raw key is
-  never stored — it is minted at claim time and rendered straight from memory)
-- `POST /webhooks/stripe` signature-verified, idempotent reservation + revocation,
-  safe against out-of-order delivery (deletion tombstones unclaimed reservations)
-- `scheduled` stub for daily cron work (snapshots, digests)
-- D1 migrations, vitest-pool-workers integration tests, typed end-to-end (`AppType` exported for Hono RPC)
-
-## Before going live
-
-- Add a Cloudflare WAF rate-limiting rule for `POST /billing/checkout` (and
-  consider Turnstile on the landing form): it is unauthenticated and each call
-  creates a Stripe Checkout Session.
-- Note: `session_id` appears in the `/billing/success` URL (Stripe injects it),
-  so it lands in Workers Logs. The key reveal itself requires the POST claim,
-  and log access is privileged — accepted residual risk; revisit if your threat
-  model includes log readers.
-
-## Setup
+### Markdown snapshots (free, no key)
 
 ```sh
-# 1. Create the database and paste its id into wrangler.jsonc
-wrangler d1 create <probe-name>
-npm run migrate:local        # and migrate:remote before deploy
+curl https://tariff.watch/snapshot/latest.md     # last 7 days, regenerated daily
+curl https://tariff.watch/snapshot/2026-06-09.md # immutable point-in-time snapshot
+curl https://tariff.watch/llms.txt               # agent-facing index
+```
 
-# 2. Secrets (local: copy .dev.vars.example → .dev.vars)
-wrangler secret put STRIPE_SECRET_KEY      # use a restricted rk_ key
-wrangler secret put STRIPE_WEBHOOK_SECRET
+Dated snapshots never change once their day has passed — useful when an agent
+needs to prove what was known on a given date.
 
-# 3. Stripe dashboard: create a Product + recurring Price, paste the price id
-#    into wrangler.jsonc vars.STRIPE_PRICE_ID; add a webhook endpoint for
-#    https://<worker-url>/webhooks/stripe with events:
-#    checkout.session.completed, customer.subscription.deleted
+### JSON API
 
-# 4. Develop / verify / ship
-npm run dev
-npm run typecheck && npm test && npm run dry-run
+```sh
+# Get a key (shown once) — free tier: 250 requests/month
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com"}' https://tariff.watch/v1/keys
+
+# Query structured changes
+curl -H "Authorization: Bearer <your-key>" \
+  "https://tariff.watch/v1/changes?since=2026-06-01&limit=50"
+```
+
+Response fields: `document_number`, `title`, `type`, `abstract`,
+`publication_date`, `agencies[]`, and the primary-source `url`. A Pro tier
+(10,000 requests/month, $19/mo) is available from the landing page.
+
+## How it works
+
+A Cloudflare Worker (Hono + D1) with a daily cron (14:00 UTC, after the
+Federal Register's morning publication):
+
+1. **Ingest** — query the [Federal Register API](https://www.federalregister.gov/developers/documentation/api/v1)
+   for the trade agencies + presidential tariff documents (3-day look-back so
+   missed runs self-heal; inserts are idempotent).
+2. **Snapshot** — regenerate today's Markdown digest over a 7-day window;
+   past snapshots are immutable.
+3. **Serve** — landing page, snapshots, and the metered JSON API. API keys
+   are stored as SHA-256 hashes; raw keys are shown exactly once.
+
+## Development
+
+This probe lives in a small monorepo ("factory") of metered Workers products
+sharing [`@factory/core`](../../core) (auth, metering, Stripe billing,
+analytics). From the repo root:
+
+```sh
+npm install
+npm run verify          # biome + tsc + vitest (workers pool) + dry-run deploy
+```
+
+Probe-specific (from `probes/tariff-watch/`):
+
+```sh
+npm run dev             # local dev server
+npm run migrate:local   # apply D1 migrations locally
+npx vitest run          # this probe's test suite
 npm run deploy
 ```
 
-## Reading the dials
+### Configuration
 
-Usage and funnel live in D1 — no third-party analytics:
+Vars (public, in [wrangler.jsonc](wrangler.jsonc)): `APP_BASE_URL`,
+`STRIPE_PRICE_ID`, `PRO_MONTHLY_QUOTA`, `FREE_MONTHLY_QUOTA`.
 
-```sh
-wrangler d1 execute <probe-name> --remote --command \
-  "SELECT name, COUNT(*) n FROM analytics_events WHERE created_at >= datetime('now','-30 days') GROUP BY name ORDER BY n DESC"
-wrangler d1 execute <probe-name> --remote --command \
-  "SELECT k.key_hint, k.plan, COUNT(u.id) calls FROM api_keys k LEFT JOIN usage_events u ON u.key_id = k.id GROUP BY k.id"
-```
+Secrets (via `.dev.vars` locally, `wrangler secret put` in production):
+
+| Secret | Purpose |
+| --- | --- |
+| `ADMIN_TOKEN` | authorizes `POST /admin/ingest` (manual ingest trigger) |
+| `STRIPE_SECRET_KEY` | restricted (`rk_`) key scoped to Checkout Sessions + Billing meter events |
+| `STRIPE_WEBHOOK_SECRET` | signing secret for the `/webhooks/stripe` endpoint (events: `checkout.session.completed`, `customer.subscription.deleted`) |
+
+Until the two Stripe secrets are set, `/billing/checkout` returns a structured
+`missing_configuration` error and every other surface works normally.
+
+## Status
+
+This is probe #1 of an experiment factory: it earns its keep through real
+usage by 2026-07-25 or gets archived with a public post-mortem. If it's
+useful to you, the best way to keep it alive is to use it — and say so.

@@ -1,5 +1,5 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
+	"$schema": "../../node_modules/wrangler/config-schema.json",
 	"name": "tariff-watch",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-06-09",
@@ -21,14 +21,14 @@
 		// Public, non-secret configuration only. Secrets (STRIPE_SECRET_KEY,
 		// STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN) go in `.dev.vars` locally and
 		// `wrangler secret put <NAME>` in production — never here.
-		"APP_BASE_URL": "https://tariff-watch.jaketdaniels95.workers.dev",
+		"APP_BASE_URL": "https://tariff.watch",
 		"STRIPE_PRICE_ID": "price_1TgZDxRvagOb6JQr6AApWs1l",
 		"PRO_MONTHLY_QUOTA": 10000,
 		"FREE_MONTHLY_QUOTA": 250
 	},
 	// Daily ingest at 14:00 UTC — after the Federal Register's ~6am ET publication.
-	"triggers": { "crons": ["0 14 * * *"] }
+	"triggers": { "crons": ["0 14 * * *"] },
 	// Custom domain (uncomment after registering tariff.watch in this Cloudflare
 	// account, then set APP_BASE_URL to https://tariff.watch and redeploy):
-	// "routes": [{ "pattern": "tariff.watch", "custom_domain": true }]
+	"routes": [{ "pattern": "tariff.watch", "custom_domain": true }]
 }
