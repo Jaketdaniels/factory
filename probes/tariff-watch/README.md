@@ -46,7 +46,7 @@ curl -H "Authorization: Bearer <your-key>" \
 
 Response fields: `document_number`, `title`, `type`, `abstract`,
 `publication_date`, `agencies[]`, and the primary-source `url`. A Pro tier
-(10,000 requests/month, $19/mo) is available from the landing page.
+(10,000 requests/month, A$3/mo) is available via `POST /billing/checkout`.
 
 ## How it works
 
