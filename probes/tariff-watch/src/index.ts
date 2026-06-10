@@ -88,7 +88,7 @@ const app = new Hono<AppEnv>()
 		const today = isoDate(new Date());
 		const [docsResult, snapshotRow, upcomingResult] = await Promise.all([
 			c.env.DB.prepare(
-				`SELECT ${TRADE_ACTION_COLUMNS} FROM tariff_documents ORDER BY publication_date DESC, document_number DESC LIMIT 12`,
+				`SELECT ${TRADE_ACTION_COLUMNS} FROM tariff_documents ORDER BY publication_date DESC, document_number DESC LIMIT 10`,
 			).all(),
 			c.env.DB.prepare("SELECT snapshot_date FROM snapshots ORDER BY snapshot_date DESC LIMIT 1").first(),
 			c.env.DB.prepare(
