@@ -45,8 +45,24 @@ describe("public surfaces", () => {
 		const res = await SELF.fetch("https://example.com/");
 		expect(res.status).toBe(200);
 		const html = await res.text();
-		expect(html).toContain("tariff-watch");
+		expect(html).toContain("tariff.watch");
 		expect(html).toContain("Steel Derivatives: Section 232 Inclusion");
+	});
+
+	it("renders the deadline strip, both pricing doors, and real API URLs", async () => {
+		// Far-future dates keep the deadline assertions stable over time.
+		await env.DB.prepare(
+			"INSERT INTO tariff_documents (document_number, title, doc_type, abstract, publication_date, url, agencies, source_query, program, legal_status, effective_on, comments_close_on, source_type, source_id, confidence) VALUES ('2099-00001', 'Future Modification of Duty Rates', 'Rule', NULL, '2099-01-02', 'https://www.federalregister.gov/d/2099-00001', '[]', 'trade-agencies', 'section_232', 'final', '2099-03-01', '2099-02-01', 'federal_register', '2099-00001', 'medium')",
+		).run();
+		const html = await (await SELF.fetch("https://example.com/")).text();
+		expect(html).toContain("Upcoming deadlines");
+		expect(html).toContain("2099-03-01");
+		expect(html).toContain("Comments due");
+		expect(html).toContain('id="pro"');
+		expect(html).toContain("/billing/checkout");
+		// Real domain in the examples, never a placeholder.
+		expect(html).toContain("https://tariff.watch/snapshot/latest.md");
+		expect(html).not.toContain("this-domain");
 	});
 
 	it("shows the empty state before first ingest", async () => {

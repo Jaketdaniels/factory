@@ -85,11 +85,21 @@ const app = new Hono<AppEnv>()
 
 	.get("/", async (c) => {
 		c.executionCtx.waitUntil(track(c.env.DB, "pageview", { path: "/" }));
-		const [docsResult, snapshotRow] = await Promise.all([
+		const today = isoDate(new Date());
+		const [docsResult, snapshotRow, upcomingResult] = await Promise.all([
 			c.env.DB.prepare(
 				`SELECT ${TRADE_ACTION_COLUMNS} FROM tariff_documents ORDER BY publication_date DESC, document_number DESC LIMIT 12`,
 			).all(),
 			c.env.DB.prepare("SELECT snapshot_date FROM snapshots ORDER BY snapshot_date DESC LIMIT 1").first(),
+			c.env.DB.prepare(
+				`SELECT date, kind, title, url FROM (
+					SELECT effective_on AS date, 'effective' AS kind, title, url FROM tariff_documents WHERE effective_on >= ?1
+					UNION ALL SELECT comments_close_on, 'comment_due', title, url FROM tariff_documents WHERE comments_close_on >= ?1
+					UNION ALL SELECT hearing_on, 'hearing', title, url FROM tariff_documents WHERE hearing_on >= ?1
+				) ORDER BY date ASC LIMIT 5`,
+			)
+				.bind(today)
+				.all(),
 		]);
 		const docs: LandingDoc[] = z
 			.array(storedTradeActionRowSchema)
@@ -107,7 +117,18 @@ const app = new Hono<AppEnv>()
 				hearingOn: d.hearing_on,
 			}));
 		const latestSnapshot = z.object({ snapshot_date: z.string() }).nullable().parse(snapshotRow);
-		return c.html(landingPage(docs, latestSnapshot?.snapshot_date ?? null, c.env.FREE_MONTHLY_QUOTA));
+		const upcoming = z
+			.array(z.object({ date: z.string(), kind: z.string(), title: z.string(), url: z.string() }))
+			.parse(upcomingResult.results);
+		return c.html(
+			landingPage({
+				docs,
+				latestSnapshotDate: latestSnapshot?.snapshot_date ?? null,
+				freeQuota: c.env.FREE_MONTHLY_QUOTA,
+				baseUrl: c.env.APP_BASE_URL,
+				upcoming,
+			}),
+		);
 	})
 
 	.get("/healthz", (c) => c.json({ ok: true }))
