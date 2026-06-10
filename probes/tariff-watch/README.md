@@ -1,6 +1,6 @@
 # tariff.watch
 
-**Live: https://tariff.watch** — a daily, facts-only changelog of US tariff,
+**Live: https://tariff.watch** — a source-first evidence layer for US tariff,
 customs, and trade-action changes, built for both humans and AI agents.
 
 US trade policy now changes weekly — Section 232/301 actions, de-minimis
@@ -13,11 +13,14 @@ presidential tariff documents) and publishes:
 
 - a human-readable changelog at [tariff.watch](https://tariff.watch)
 - **immutable, dated Markdown snapshots** for LLM/agent grounding
+- **RSS and calendar feeds** for source-linked changes and deadlines
+- a **minimal MCP surface** for agent tool calls
 - a **structured JSON API** with API keys and monthly quotas
 
 Every entry links to its primary federalregister.gov document. No third-party
 text is reproduced: US government works are public domain (17 U.S.C. §105),
-and all summaries are our own.
+and all summaries are our own. Rows carry program, legal status, effective
+dates, comment deadlines, hearing dates, source identity, and confidence.
 
 ## Using it
 
@@ -27,6 +30,8 @@ and all summaries are our own.
 curl https://tariff.watch/snapshot/latest.md     # last 7 days, regenerated daily
 curl https://tariff.watch/snapshot/2026-06-09.md # immutable point-in-time snapshot
 curl https://tariff.watch/llms.txt               # agent-facing index
+curl https://tariff.watch/feed.xml               # RSS
+curl https://tariff.watch/calendar.ics           # effective dates, comments, hearings
 ```
 
 Dated snapshots never change once their day has passed — useful when an agent
@@ -45,8 +50,18 @@ curl -H "Authorization: Bearer <your-key>" \
 ```
 
 Response fields: `document_number`, `title`, `type`, `abstract`,
-`publication_date`, `agencies[]`, and the primary-source `url`. A Pro tier
-(10,000 requests/month, A$3/mo) is available via `POST /billing/checkout`.
+`publication_date`, `agencies[]`, `program`, `legal_status`, `effective_on`,
+`comments_close_on`, `hearing_on`, `confidence`, and the primary-source `url`.
+A Pro tier (10,000 requests/month, A$3/mo) is available via
+`POST /billing/checkout`.
+
+### MCP
+
+`POST /mcp` exposes a minimal stateless JSON-RPC MCP surface:
+
+- `tariffs_list_changes`
+- `tariffs_effective_dates`
+- `tariffs_get_source`
 
 ## How it works
 
@@ -55,10 +70,11 @@ Federal Register's morning publication):
 
 1. **Ingest** — query the [Federal Register API](https://www.federalregister.gov/developers/documentation/api/v1)
    for the trade agencies + presidential tariff documents (3-day look-back so
-   missed runs self-heal; inserts are idempotent).
+   missed runs self-heal; inserts are idempotent). The June 2026 USTR forced-labor
+   Section 301 notice is also pinned as a tracked source program.
 2. **Snapshot** — regenerate today's Markdown digest over a 7-day window;
    past snapshots are immutable.
-3. **Serve** — landing page, snapshots, and the metered JSON API. API keys
+3. **Serve** — landing page, snapshots, RSS, calendar, MCP, and the metered JSON API. API keys
    are stored as SHA-256 hashes; raw keys are shown exactly once.
 
 ## Development

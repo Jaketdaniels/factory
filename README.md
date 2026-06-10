@@ -3,9 +3,9 @@
 Small, metered API products on Cloudflare Workers — plus the shared machinery
 to ship more of them fast.
 
-The flagship product is **[tariff.watch](https://tariff.watch)**: a daily,
-facts-only changelog of US tariff, customs, and trade-action changes, built
-for both humans and AI agents.
+The flagship product is **[tariff.watch](https://tariff.watch)**: a
+source-first evidence layer for US tariff, customs, and trade-action changes,
+built for both humans and AI agents.
 
 ## tariff.watch
 
@@ -13,23 +13,31 @@ US trade policy changes weekly — Section 232/301 actions, de-minimis rules,
 exclusion lists, antidumping orders. LLMs answer with stale data, and reading
 the Federal Register takes hours. tariff.watch ingests every trade-relevant
 federal publication daily (USTR, CBP, ITA, ITC, BIS, the Foreign-Trade Zones
-Board, and presidential tariff documents) and republishes it three ways:
+Board, and presidential tariff documents) and republishes it through source
+pages, snapshots, feeds, API, and MCP:
 
 | Surface | URL | Auth |
 | --- | --- | --- |
 | Human changelog | [tariff.watch](https://tariff.watch) | none |
 | Markdown snapshots for agents | [/snapshot/latest.md](https://tariff.watch/snapshot/latest.md), `/snapshot/YYYY-MM-DD.md`, [/llms.txt](https://tariff.watch/llms.txt) | none |
+| RSS and calendar | [/feed.xml](https://tariff.watch/feed.xml), [/calendar.ics](https://tariff.watch/calendar.ics) | none |
+| MCP | `/mcp` | none |
 | Structured JSON API | `/v1/changes` | API key |
 
 Everything links to its primary federalregister.gov document. No third-party
 text is reproduced — US government works are public domain (17 U.S.C. §105),
-and all summaries are original.
+and all summaries are original. Rows include program, legal status, effective
+dates, comment deadlines, hearing dates, source identity, and confidence.
 
 ### API quickstart
 
 ```sh
 # Free Markdown for agents — the last 7 days, regenerated daily
 curl https://tariff.watch/snapshot/latest.md
+
+# Source-first public feeds
+curl https://tariff.watch/feed.xml
+curl https://tariff.watch/calendar.ics
 
 # Dated snapshots are immutable once their day passes (point-in-time grounding)
 curl https://tariff.watch/snapshot/2026-06-09.md
@@ -45,10 +53,11 @@ curl -H "Authorization: Bearer <your-key>" \
 
 `GET /v1/changes` returns `{ since, count, results[], usage.remaining }`,
 where each result has `document_number`, `title`, `type`, `abstract`,
-`publication_date`, `agencies[]`, and the primary-source `url`. Errors are
-structured JSON (`{ "error": { "code": "...", "message": "..." } }`); quota
-exhaustion is a `429 quota_exceeded`. A Pro tier (10,000 requests/month, $19/mo) is available
-from the landing page.
+`publication_date`, `agencies[]`, `program`, `legal_status`, `effective_on`,
+`comments_close_on`, `hearing_on`, `confidence`, and the primary-source `url`.
+Errors are structured JSON (`{ "error": { "code": "...", "message": "..." } }`);
+quota exhaustion is a `429 quota_exceeded`. A Pro tier (10,000 requests/month,
+A$3/mo) is available from the landing page.
 
 Full product documentation: [probes/tariff-watch](probes/tariff-watch/README.md).
 

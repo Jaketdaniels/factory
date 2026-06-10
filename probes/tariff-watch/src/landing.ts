@@ -45,6 +45,11 @@ export interface LandingDoc {
 	publicationDate: string;
 	url: string;
 	agencies: string[];
+	program: string;
+	legalStatus: string;
+	effectiveOn: string | null;
+	commentsCloseOn: string | null;
+	hearingOn: string | null;
 }
 
 export function landingPage(latestDocs: LandingDoc[], latestSnapshotDate: string | null, freeQuota: number): string {
@@ -52,29 +57,40 @@ export function landingPage(latestDocs: LandingDoc[], latestSnapshotDate: string
 		latestDocs.length === 0
 			? `<p class="meta">No documents ingested yet — the first daily snapshot is on its way.</p>`
 			: latestDocs
-					.map(
-						(d) => `<div class="doc">
+					.map((d) => {
+						const dates = [
+							d.effectiveOn === null ? null : `effective ${escapeHtml(d.effectiveOn)}`,
+							d.commentsCloseOn === null ? null : `comments due ${escapeHtml(d.commentsCloseOn)}`,
+							d.hearingOn === null ? null : `hearing ${escapeHtml(d.hearingOn)}`,
+						]
+							.filter((value): value is string => value !== null)
+							.join(" · ");
+						const dateLine = dates.length > 0 ? `<div class="meta">${dates}</div>` : "";
+						return `<div class="doc">
 <strong>[${escapeHtml(d.docType)}]</strong> <a href="${escapeHtml(d.url)}" rel="noopener">${escapeHtml(d.title)}</a>
-<div class="meta">${escapeHtml(d.publicationDate)}${d.agencies.length > 0 ? ` · ${escapeHtml(d.agencies.join(", "))}` : ""}</div>
-</div>`,
-					)
+<div class="meta">${escapeHtml(d.publicationDate)} · ${escapeHtml(d.program)} · ${escapeHtml(d.legalStatus)}${d.agencies.length > 0 ? ` · ${escapeHtml(d.agencies.join(", "))}` : ""}</div>
+${dateLine}
+</div>`;
+					})
 					.join("\n");
 
 	const snapshotLink =
 		latestSnapshotDate === null
 			? ""
-			: `<p>Latest snapshot: <a href="/snapshot/latest.md"><code>/snapshot/latest.md</code></a> (${escapeHtml(latestSnapshotDate)}) — token-efficient Markdown for LLMs and agents. Index: <a href="/llms.txt"><code>/llms.txt</code></a>.</p>`;
+			: `<p>Latest snapshot: <a href="/snapshot/latest.md"><code>/snapshot/latest.md</code></a> (${escapeHtml(latestSnapshotDate)}) — token-efficient Markdown for LLMs and agents. Index: <a href="/llms.txt"><code>/llms.txt</code></a>. Feeds: <a href="/feed.xml"><code>/feed.xml</code></a>, <a href="/calendar.ics"><code>/calendar.ics</code></a>, <code>POST /mcp</code>.</p>`;
 
 	return page(
 		"tariff-watch — daily US tariff & trade-action changelog",
 		`<h1>What changed in US tariffs — today</h1>
-<p>US trade policy now changes weekly: Section 232/301 actions, de-minimis rules, exclusion lists, antidumping orders. Language models answer with stale data; reading the Federal Register yourself takes hours. <strong>tariff-watch</strong> publishes a facts-only daily changelog of every trade-relevant federal action — as human-readable pages, immutable Markdown snapshots, and a JSON API built for agents.</p>
+<p>US trade policy now changes weekly: Section 232/301 actions, de-minimis rules, exclusion lists, antidumping orders, and forced-labor trade actions. Language models answer with stale data; reading the Federal Register yourself takes hours. <strong>tariff-watch</strong> publishes a source-first trade-action evidence layer with legal status, effective dates, primary-source links, immutable Markdown snapshots, RSS, calendar output, MCP, and a JSON API built for agents.</p>
 ${snapshotLink}
 <h2>Latest trade actions</h2>
 ${docList}
 <h2>API</h2>
 <pre># Free Markdown for agents
 curl https://&lt;this-domain&gt;/snapshot/latest.md
+curl https://&lt;this-domain&gt;/feed.xml
+curl https://&lt;this-domain&gt;/calendar.ics
 
 # Structured JSON (free key, ${freeQuota} requests/month)
 curl -X POST -H "Content-Type: application/json" -d '{"email":"you@example.com"}' https://&lt;this-domain&gt;/v1/keys

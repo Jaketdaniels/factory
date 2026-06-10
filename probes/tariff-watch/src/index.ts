@@ -18,8 +18,11 @@ import {
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
+import { renderCalendar, renderRssFeed } from "./feeds";
 import { isoDate, runIngest } from "./ingest";
 import { type LandingDoc, landingPage, successPage } from "./landing";
+import { handleMcpJsonRpc } from "./mcp";
+import { listTradeActions, parseAgencies, storedTradeActionRowSchema, TRADE_ACTION_COLUMNS } from "./trade-action";
 
 type AppEnv = {
 	Bindings: Env;
@@ -36,17 +39,8 @@ const changesQuerySchema = z.object({
 });
 const snapshotParamSchema = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}\.md$/, "Use YYYY-MM-DD.md") });
 
-const storedDocRowSchema = z.object({
-	document_number: z.string(),
-	title: z.string(),
-	doc_type: z.string(),
-	abstract: z.string().nullable(),
-	publication_date: z.string(),
-	url: z.string(),
-	agencies: z.string(),
-});
-
 const adminEnvSchema = z.object({ ADMIN_TOKEN: z.string().min(16).optional() });
+const adminIngestBodySchema = z.object({ since: z.string().regex(DATE_PATTERN, "Use YYYY-MM-DD").optional() });
 
 /** Constant-time string comparison via hashed digests (lengths may differ). */
 async function timingSafeEqualStrings(a: string, b: string): Promise<boolean> {
@@ -93,19 +87,24 @@ const app = new Hono<AppEnv>()
 		c.executionCtx.waitUntil(track(c.env.DB, "pageview", { path: "/" }));
 		const [docsResult, snapshotRow] = await Promise.all([
 			c.env.DB.prepare(
-				"SELECT document_number, title, doc_type, abstract, publication_date, url, agencies FROM tariff_documents ORDER BY publication_date DESC, document_number DESC LIMIT 12",
+				`SELECT ${TRADE_ACTION_COLUMNS} FROM tariff_documents ORDER BY publication_date DESC, document_number DESC LIMIT 12`,
 			).all(),
 			c.env.DB.prepare("SELECT snapshot_date FROM snapshots ORDER BY snapshot_date DESC LIMIT 1").first(),
 		]);
 		const docs: LandingDoc[] = z
-			.array(storedDocRowSchema)
+			.array(storedTradeActionRowSchema)
 			.parse(docsResult.results)
 			.map((d) => ({
 				title: d.title,
 				docType: d.doc_type,
 				publicationDate: d.publication_date,
 				url: d.url,
-				agencies: z.array(z.string()).catch([]).parse(JSON.parse(d.agencies)),
+				agencies: parseAgencies(d.agencies),
+				program: d.program,
+				legalStatus: d.legal_status,
+				effectiveOn: d.effective_on,
+				commentsCloseOn: d.comments_close_on,
+				hearingOn: d.hearing_on,
 			}));
 		const latestSnapshot = z.object({ snapshot_date: z.string() }).nullable().parse(snapshotRow);
 		return c.html(landingPage(docs, latestSnapshot?.snapshot_date ?? null, c.env.FREE_MONTHLY_QUOTA));
@@ -127,15 +126,58 @@ const app = new Hono<AppEnv>()
 
 - [Latest snapshot](/snapshot/latest.md): the last 7 days of trade actions, token-efficient Markdown, regenerated daily.
 - /snapshot/YYYY-MM-DD.md: immutable dated snapshots for point-in-time grounding.
+- [RSS feed](/feed.xml): source-linked changes with program, status, and date metadata.
+- [Calendar feed](/calendar.ics): effective dates, comment deadlines, and hearings.
 
 ## JSON API (free key)
 
 - POST /v1/keys with {"email": "..."} returns an API key (shown once).
-- GET /v1/changes?since=YYYY-MM-DD&limit=50 with "Authorization: Bearer <key>" returns structured documents: number, title, type, abstract, publication date, agencies, primary-source URL.
+- GET /v1/changes?since=YYYY-MM-DD&limit=50 with "Authorization: Bearer <key>" returns structured documents: number, title, type, abstract, publication date, agencies, program, legal status, effective dates, confidence, and primary-source URL.
+
+## MCP
+
+- POST /mcp speaks a minimal JSON-RPC MCP surface with tools/list and tools/call.
+- Tools: tariffs_list_changes, tariffs_effective_dates, tariffs_get_source.
 
 Every fact links to its primary federalregister.gov document.
 `);
 	})
+
+	// Data changes at most daily (14:00 UTC cron); feed readers and calendar
+	// clients poll on their own schedules, so let the edge absorb them.
+	.get("/feed.xml", async (c) => {
+		const actions = await listTradeActions(c.env.DB, { since: "1970-01-01", limit: 50 });
+		c.header("content-type", "application/rss+xml; charset=utf-8");
+		c.header("cache-control", "public, max-age=3600");
+		return c.body(renderRssFeed(actions, c.env.APP_BASE_URL));
+	})
+
+	.get("/calendar.ics", async (c) => {
+		const actions = await listTradeActions(c.env.DB, { since: "1970-01-01", limit: 100 });
+		c.header("content-type", "text/calendar; charset=utf-8");
+		c.header("cache-control", "public, max-age=3600");
+		return c.body(renderCalendar(actions, new Date()));
+	})
+
+	.post("/mcp", async (c) => {
+		c.header("mcp-session-id", "tariff-watch-stateless");
+		let payload: unknown;
+		try {
+			payload = await c.req.json();
+		} catch {
+			return c.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Body must be JSON." } });
+		}
+		const body = await handleMcpJsonRpc(c.env.DB, payload);
+		if (body === null) {
+			return c.body(null, 202);
+		}
+		return c.json(body);
+	})
+
+	// MCP is POST-only here (no SSE stream); a GET is someone clicking a link.
+	.get("/mcp", (c) =>
+		c.json(errorBody("method_not_allowed", "MCP speaks JSON-RPC over POST. See /llms.txt for the tool list."), 405),
+	)
 
 	.get("/snapshot/latest.md", async (c) => {
 		const row = await c.env.DB.prepare(
@@ -178,29 +220,19 @@ Every fact links to its primary federalregister.gov document.
 	.get("/v1/changes", zValidator("query", changesQuerySchema), metered<AppEnv>("changes"), async (c) => {
 		const { since, limit } = c.req.valid("query");
 		const sinceDate = since ?? isoDate(new Date(Date.now() - 7 * 86_400_000));
-		const { results } = await c.env.DB.prepare(
-			"SELECT document_number, title, doc_type, abstract, publication_date, url, agencies FROM tariff_documents WHERE publication_date >= ? ORDER BY publication_date DESC, document_number DESC LIMIT ?",
-		)
-			.bind(sinceDate, limit)
-			.all();
-		const docs = z.array(storedDocRowSchema).parse(results);
+		const docs = await listTradeActions(c.env.DB, { since: sinceDate, limit });
 		return c.json({
 			since: sinceDate,
 			count: docs.length,
-			results: docs.map((d) => ({
-				document_number: d.document_number,
-				title: d.title,
-				type: d.doc_type,
-				abstract: d.abstract,
-				publication_date: d.publication_date,
-				url: d.url,
-				agencies: z.array(z.string()).catch([]).parse(JSON.parse(d.agencies)),
-			})),
+			results: docs,
 			usage: { remaining: c.get("usage").remaining },
 		});
 	})
 
 	// Operational trigger for ingest (cron does this daily). Requires ADMIN_TOKEN.
+	// Optional JSON body {"since":"YYYY-MM-DD"} widens the fetch window — the
+	// backfill path that re-pulls and reclassifies historical rows after
+	// classifier changes.
 	.post("/admin/ingest", async (c) => {
 		const adminEnv = adminEnvSchema.parse(c.env);
 		const provided = c.req.header("x-admin-token");
@@ -210,7 +242,14 @@ Every fact links to its primary federalregister.gov document.
 		if (provided === undefined || !(await timingSafeEqualStrings(provided, adminEnv.ADMIN_TOKEN))) {
 			return c.json(errorBody("forbidden", "Invalid admin token."), 403);
 		}
-		const result = await runIngest(c.env, new Date());
+		const rawBody = await c.req.text();
+		let body: z.infer<typeof adminIngestBodySchema>;
+		try {
+			body = adminIngestBodySchema.parse(rawBody === "" ? {} : JSON.parse(rawBody));
+		} catch {
+			return c.json(errorBody("invalid_body", 'Body must be empty or {"since":"YYYY-MM-DD"}.'), 400);
+		}
+		const result = await runIngest(c.env, new Date(), { sinceDate: body.since });
 		c.executionCtx.waitUntil(track(c.env.DB, "ingest_run", { trigger: "admin", ...result }));
 		return c.json(result);
 	})

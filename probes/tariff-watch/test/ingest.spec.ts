@@ -14,7 +14,9 @@ async function clearTables(): Promise<void> {
 }
 
 interface FixtureDoc {
+	comments_close_on?: string | null;
 	document_number: string;
+	effective_on?: string | null;
 	title: string;
 	type: string;
 	abstract: string | null;
@@ -65,6 +67,20 @@ function frHandler() {
 			results: [doc("2026-20001", "Overlap Doc", "2026-06-08"), doc("2026-20003", "Agency Doc Page One", "2026-06-08")],
 		});
 	});
+}
+
+function forcedLaborSection301Doc(): FixtureDoc {
+	return {
+		document_number: "2026-11296",
+		title: "Section 301 Investigations of Forced Labor Import Prohibitions",
+		type: "Notice",
+		abstract:
+			"Notice of determinations and request for comments concerning actions in Section 301 investigations related to forced labor goods.",
+		publication_date: "2026-06-05",
+		html_url: "https://www.federalregister.gov/d/2026-11296",
+		agency_names: ["Office of the United States Trade Representative"],
+		comments_close_on: "2026-07-06",
+	};
 }
 
 const server = setupServer();
@@ -121,6 +137,82 @@ describe("runIngest", () => {
 			markdown: string;
 		}>();
 		expect(snapshot?.markdown).toContain("No trade-relevant documents");
+	});
+
+	it("tracks the June 2026 USTR forced-labor Section 301 program as a source evidence event", async () => {
+		server.use(
+			http.get(FR_URL, ({ request }) => {
+				const url = new URL(request.url);
+				if (url.searchParams.get("conditions[term]") === "2026-11296") {
+					return HttpResponse.json({ count: 1, results: [forcedLaborSection301Doc()] });
+				}
+				return HttpResponse.json({ count: 0, results: [] });
+			}),
+		);
+
+		const result = await runIngest(env, new Date("2026-06-10T14:00:00Z"));
+		expect(result.inserted).toBe(1);
+
+		const stored = await env.DB.prepare(
+			"SELECT program, legal_status, comments_close_on, hearing_on, source_type, source_id, confidence FROM tariff_documents WHERE document_number = ?",
+		)
+			.bind("2026-11296")
+			.first<{
+				comments_close_on: string | null;
+				confidence: string;
+				hearing_on: string | null;
+				legal_status: string;
+				program: string;
+				source_id: string;
+				source_type: string;
+			}>();
+		expect(stored).toEqual({
+			program: "section_301_forced_labor",
+			legal_status: "proposed",
+			comments_close_on: "2026-07-06",
+			hearing_on: "2026-07-07",
+			source_type: "federal_register",
+			source_id: "2026-11296",
+			confidence: "high",
+		});
+
+		const snapshot = await env.DB.prepare("SELECT markdown FROM snapshots WHERE snapshot_date = '2026-06-10'").first<{
+			markdown: string;
+		}>();
+		expect(snapshot?.markdown).toContain("section_301_forced_labor");
+		expect(snapshot?.markdown).toContain("Comment deadline: 2026-07-06");
+		expect(snapshot?.markdown).toContain("Hearing: 2026-07-07");
+	});
+
+	it("propagates source corrections to stored rows, then settles back to zero writes", async () => {
+		const fixture = forcedLaborSection301Doc();
+		const handler = () =>
+			http.get(FR_URL, ({ request }) => {
+				const url = new URL(request.url);
+				if (url.searchParams.get("conditions[term]") === "2026-11296") {
+					return HttpResponse.json({ count: 1, results: [fixture] });
+				}
+				return HttpResponse.json({ count: 0, results: [] });
+			});
+
+		server.use(handler());
+		const first = await runIngest(env, new Date("2026-06-10T14:00:00Z"));
+		expect(first.inserted).toBe(1);
+
+		// The source corrects the comment deadline: the stored row must follow.
+		fixture.comments_close_on = "2026-07-13";
+		server.use(handler());
+		const second = await runIngest(env, new Date("2026-06-10T20:00:00Z"));
+		expect(second.inserted).toBe(1);
+		const stored = await env.DB.prepare(
+			"SELECT comments_close_on FROM tariff_documents WHERE document_number = '2026-11296'",
+		).first<{ comments_close_on: string | null }>();
+		expect(stored?.comments_close_on).toBe("2026-07-13");
+
+		// Unchanged data writes nothing: ingest stays observably idempotent.
+		server.use(handler());
+		const third = await runIngest(env, new Date("2026-06-10T22:00:00Z"));
+		expect(third.inserted).toBe(0);
 	});
 
 	it("surfaces upstream failures instead of writing a bad snapshot", async () => {

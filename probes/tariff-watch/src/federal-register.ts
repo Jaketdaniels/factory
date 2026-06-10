@@ -1,5 +1,6 @@
 import { ApiError } from "@factory/core";
 import { z } from "zod";
+import { PINNED_DOCUMENT_NUMBERS } from "./trade-action";
 
 /**
  * Federal Register API client. US government works are public domain
@@ -18,7 +19,9 @@ export const TRADE_AGENCY_SLUGS = [
 ] as const;
 
 const frDocumentSchema = z.object({
+	comments_close_on: z.string().nullish(),
 	document_number: z.string(),
+	effective_on: z.string().nullish(),
 	title: z.string(),
 	type: z.string(),
 	abstract: z.string().nullish(),
@@ -42,10 +45,25 @@ export interface TradeDocument {
 	url: string;
 	agencies: string[];
 	sourceQuery: string;
+	effectiveOn?: string | null;
+	commentsCloseOn?: string | null;
 }
 
-const FIELDS = ["document_number", "title", "type", "abstract", "publication_date", "html_url", "agency_names"];
+const FIELDS = [
+	"document_number",
+	"title",
+	"type",
+	"abstract",
+	"publication_date",
+	"html_url",
+	"agency_names",
+	"effective_on",
+	"comments_close_on",
+];
 const MAX_PAGES_PER_QUERY = 5;
+// Pinned documents predate the daily look-back window; fetch them by exact
+// document number so a fresh database always carries them.
+const TRACKED_DOCUMENTS_SINCE = "2026-06-01";
 
 function buildQueryUrl(
 	sinceDate: string,
@@ -89,6 +107,8 @@ async function fetchPaged(firstUrl: string, sourceQuery: string): Promise<TradeD
 				url: doc.html_url,
 				agencies: doc.agency_names ?? [],
 				sourceQuery,
+				effectiveOn: doc.effective_on ?? null,
+				commentsCloseOn: doc.comments_close_on ?? null,
 			});
 		}
 		url = parsed.next_page_url ?? null;
@@ -103,12 +123,16 @@ async function fetchPaged(firstUrl: string, sourceQuery: string): Promise<TradeD
  * trade agencies). Deduplicated by document number.
  */
 export async function fetchTradeDocuments(sinceDate: string): Promise<TradeDocument[]> {
-	const [agencyDocs, presidentialDocs] = await Promise.all([
+	const trackedDocumentRequests = PINNED_DOCUMENT_NUMBERS.map((documentNumber) =>
+		fetchPaged(buildQueryUrl(TRACKED_DOCUMENTS_SINCE, { term: documentNumber }), "tracked-document"),
+	);
+	const [agencyDocs, presidentialDocs, ...trackedDocumentGroups] = await Promise.all([
 		fetchPaged(buildQueryUrl(sinceDate, { agencies: TRADE_AGENCY_SLUGS }), "trade-agencies"),
 		fetchPaged(buildQueryUrl(sinceDate, { term: "tariff", type: "PRESDOCU" }), "presidential-tariff"),
+		...trackedDocumentRequests,
 	]);
 	const byNumber = new Map<string, TradeDocument>();
-	for (const doc of [...agencyDocs, ...presidentialDocs]) {
+	for (const doc of [...agencyDocs, ...presidentialDocs, ...trackedDocumentGroups.flat()]) {
 		if (!byNumber.has(doc.documentNumber)) {
 			byNumber.set(doc.documentNumber, doc);
 		}
