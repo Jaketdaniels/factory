@@ -9,3 +9,7 @@ dist/
 coverage/
 .env
 .env.*
+
+# Browser-tool page snapshots and screenshots (ephemeral)
+.playwright-mcp/
+*.png
