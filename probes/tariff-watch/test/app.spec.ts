@@ -396,6 +396,14 @@ describe("account deletion", () => {
 		expect(await unknown.json()).toEqual(body);
 	});
 
+	it("serves the MCP server card at the well-known path", async () => {
+		const res = await SELF.fetch("https://example.com/.well-known/mcp.json");
+		expect(res.status).toBe(200);
+		const card = (await res.json()) as { name: string; remotes: { url: string; type: string }[] };
+		expect(card.name).toBe("io.github.Jaketdaniels/tariff-watch");
+		expect(card.remotes[0]).toMatchObject({ type: "streamable-http", url: "https://tariff.watch/mcp" });
+	});
+
 	it("serves the terms page, linked from the footer and llms.txt", async () => {
 		const terms = await SELF.fetch("https://example.com/terms");
 		expect(terms.status).toBe(200);

@@ -1,0 +1,30 @@
+{
+	"$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+	"name": "io.github.Jaketdaniels/tariff-watch",
+	"title": "tariff.watch",
+	"description": "Source-linked changelog of US tariff, customs, and trade actions from the Federal Register (public domain): legal status, effective dates, comment deadlines, and an immutable dated archive. Tool discovery is free; tool calls use an API key from https://tariff.watch (first 30 calls free, then US$0.10/call).",
+	"version": "1.0.0",
+	"websiteUrl": "https://tariff.watch",
+	"remotes": [
+		{
+			"type": "streamable-http",
+			"url": "https://tariff.watch/mcp",
+			"headers": [
+				{
+					"name": "Authorization",
+					"description": "API key from https://tariff.watch/#plans — required for tools/call, not for discovery.",
+					"isRequired": false,
+					"isSecret": true,
+					"value": "Bearer {api_key}",
+					"variables": {
+						"api_key": {
+							"description": "Your tariff.watch API key (fk_...)",
+							"isRequired": true,
+							"isSecret": true
+						}
+					}
+				}
+			]
+		}
+	]
+}

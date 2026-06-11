@@ -53,3 +53,38 @@ jobs:
       - name: Deploy skipped (no CLOUDFLARE_API_TOKEN secret)
         if: env.HAS_CF_TOKEN != 'true'
         run: echo "Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repo secrets to enable CI deploys."
+
+  # Publish the MCP server card to the official registry when it changes.
+  # Auth is GitHub Actions OIDC (io.github.<owner>/* namespace) — no browser,
+  # no stored secret. Commands per modelcontextprotocol/registry docs.
+  publish-mcp:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+      - name: Detect server.json change
+        id: card
+        run: |
+          if git diff --name-only HEAD^ HEAD | grep -q "probes/tariff-watch/server.json"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install mcp-publisher
+        if: steps.card.outputs.changed == 'true'
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          sudo mv mcp-publisher /usr/local/bin/
+      - name: Publish to MCP registry
+        if: steps.card.outputs.changed == 'true'
+        working-directory: probes/tariff-watch
+        run: |
+          mcp-publisher login github-oidc
+          mcp-publisher publish

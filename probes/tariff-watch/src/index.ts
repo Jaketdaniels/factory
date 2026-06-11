@@ -24,6 +24,7 @@ import {
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
+import serverCard from "../server.json";
 import { sendKeyCreatedEmail } from "./email";
 import { renderCalendar, renderRssFeed } from "./feeds";
 import { isoDate, runIngest } from "./ingest";
@@ -367,6 +368,14 @@ Terms (attribution, redistribution, licensing): /terms
 		c.header("content-type", "text/markdown; charset=utf-8");
 		c.header("x-snapshot-date", date);
 		return c.body(z.object({ markdown: z.string() }).parse(row).markdown);
+	})
+
+	// MCP server card for registries/clients; same doc the official registry
+	// publish uses (server.json). Format per
+	// https://github.com/modelcontextprotocol/registry docs (schema 2025-12-11).
+	.get("/.well-known/mcp.json", (c) => {
+		c.header("cache-control", "public, max-age=3600");
+		return c.json(serverCard);
 	})
 
 	.get("/terms", (c) => c.html(termsPage()))
