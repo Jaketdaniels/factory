@@ -129,7 +129,7 @@ ${body}
 </main>
 <footer>
 <p>Source: <a href="https://www.federalregister.gov/">Federal Register</a> (US government work, public domain). tariff.watch publishes its own factual summaries and links every primary document. No third-party text is reproduced.</p>
-<p class="imprint">a netm8 feed · facts only, primary sources, immutable snapshots · <a href="/account/delete">delete your key &amp; data</a></p>
+<p class="imprint">a netm8 feed · facts only, primary sources, immutable snapshots · <a href="/terms">terms</a> · <a href="/account/delete">delete your key &amp; data</a></p>
 </footer>
 </body>
 </html>`;
@@ -386,6 +386,38 @@ wireForm("pro", "pro-error", async (form) => {
   window.location.href = data.url;
 });
 </script>`,
+	);
+}
+
+/** Terms: the OpenSanctions-style license layer that protects the asset. */
+export function termsPage(): string {
+	return page(
+		"Terms — tariff.watch",
+		`<h1>Terms</h1>
+<p class="lede">Short version: the facts are public domain, our summaries are free to ground on with attribution, machine access is billed as displayed, and you can delete everything we hold about you at any time.</p>
+
+<h3>The data</h3>
+<p>Entries summarize US federal government documents, which carry no copyright (17 U.S.C. §105). Every entry links its primary source. The one-line summaries, normalized fields, and snapshots are tariff.watch's own work.</p>
+
+<h3>Free surfaces</h3>
+<p>The changelog, latest snapshot, RSS, calendar, and llms.txt are free for personal use, research, and grounding humans or AI agents, with attribution ("tariff.watch" and a link). Bulk redistribution, resale, or republication of these surfaces as a dataset is not permitted. Free surfaces are rate-limited as an abuse brake.</p>
+
+<h3>Keyed access</h3>
+<p>The JSON API, MCP tools, and dated snapshot archive are for use inside your own applications, billed exactly as displayed on the <a href="/#plans">pricing section</a>. Keys are not transferable; reselling raw access is not permitted.</p>
+
+<h3>Commercial redistribution</h3>
+<p>Embedding the feed in a product you sell, redistributing the data, or white-labeling requires a license — email <a href="mailto:hello@netm8.com">hello@netm8.com</a> with what you are building.</p>
+
+<h3>Not advice</h3>
+<p>tariff.watch is a changelog of public records, not legal, customs, or financial advice. Verify against the cited source before compliance use.</p>
+
+<h3>No warranty</h3>
+<p>The service is provided as-is. Sources are polled four times daily on reasonable efforts; statuses are inferred only from signals the source carries, and corrections are applied when sources correct themselves.</p>
+
+<h3>Your data</h3>
+<p>We hold the email you sign up with (receipts and deletion only), hashed API keys, and usage records for billing. Delete all of it at any time at <a href="/account/delete">/account/delete</a> — the inline confirmation is immediate and your Stripe subscription is cancelled with it.</p>
+
+<p class="meta">Changes to these terms are posted on this page. tariff.watch is a netm8 feed.</p>`,
 	);
 }
 

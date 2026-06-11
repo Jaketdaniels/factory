@@ -27,7 +27,7 @@ import { z } from "zod";
 import { sendKeyCreatedEmail } from "./email";
 import { renderCalendar, renderRssFeed } from "./feeds";
 import { isoDate, runIngest } from "./ingest";
-import { deletePage, type LandingDoc, landingPage, successPage } from "./landing";
+import { deletePage, type LandingDoc, landingPage, successPage, termsPage } from "./landing";
 import { handleMcpJsonRpc } from "./mcp";
 import { listTradeActions, parseAgencies, storedTradeActionRowSchema, TRADE_ACTION_COLUMNS } from "./trade-action";
 
@@ -278,6 +278,7 @@ once and never emailed.
 - Delete your key and its data anytime: POST /account/delete with {"email": "..."} or visit /account/delete.
 
 Every fact links to its primary federalregister.gov document.
+Terms (attribution, redistribution, licensing): /terms
 `);
 	})
 
@@ -367,6 +368,8 @@ Every fact links to its primary federalregister.gov document.
 		c.header("x-snapshot-date", date);
 		return c.body(z.object({ markdown: z.string() }).parse(row).markdown);
 	})
+
+	.get("/terms", (c) => c.html(termsPage()))
 
 	// The deletion page lives off the main flow; the footer links here.
 	.get("/account/delete", (c) => c.html(deletePage()))

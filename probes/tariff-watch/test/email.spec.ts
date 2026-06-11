@@ -17,5 +17,6 @@ describe("keyCreatedEmail", () => {
 		expect(email.text).toContain("Cancel anytime");
 		expect(email.text).not.toContain("US$2");
 		expect(email.html).toContain("US$0.10 per API call");
+		expect(email.text).toContain("https://tariff.watch/terms");
 	});
 });

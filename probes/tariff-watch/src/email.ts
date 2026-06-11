@@ -45,6 +45,8 @@ Enter this email address there and your key, usage records, and address are
 deleted immediately. Cancelling your subscription from any Stripe invoice
 email also deactivates the key.
 
+Terms: ${input.baseUrl}/terms
+
 tariff.watch — a netm8 feed. Facts only, primary sources, immutable snapshots.
 Questions: reply to this email.`;
 	const html = `<p>Your tariff.watch API key was created and shown to you once in the browser. For your security it is never sent by email — if you lost it, delete it below and create a new one.</p>
@@ -53,7 +55,7 @@ Pay as you go: your first ${input.freeQuota} API calls are free — a month of d
 <p><strong>Delete your key and data — anytime</strong><br>
 <a href="${input.baseUrl}/account/delete">${input.baseUrl}/account/delete</a><br>
 Enter this email address there and your key, usage records, and address are deleted immediately. Cancelling your subscription from any Stripe invoice email also deactivates the key.</p>
-<p>tariff.watch — a netm8 feed. Facts only, primary sources, immutable snapshots.<br>
+<p><a href="${input.baseUrl}/terms">Terms</a> · tariff.watch — a netm8 feed. Facts only, primary sources, immutable snapshots.<br>
 Questions: reply to this email.</p>`;
 	return { subject, text, html };
 }

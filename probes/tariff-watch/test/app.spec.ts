@@ -396,6 +396,18 @@ describe("account deletion", () => {
 		expect(await unknown.json()).toEqual(body);
 	});
 
+	it("serves the terms page, linked from the footer and llms.txt", async () => {
+		const terms = await SELF.fetch("https://example.com/terms");
+		expect(terms.status).toBe(200);
+		const html = await terms.text();
+		expect(html).toContain("Verify against the cited source before compliance use");
+		expect(html).toContain("17 U.S.C. §105");
+		expect(html).toContain("/account/delete");
+
+		expect(await (await SELF.fetch("https://example.com/")).text()).toContain('href="/terms"');
+		expect(await (await SELF.fetch("https://example.com/llms.txt")).text()).toContain("/terms");
+	});
+
 	it("serves the standalone deletion page", async () => {
 		const res = await SELF.fetch("https://example.com/account/delete");
 		expect(res.status).toBe(200);
