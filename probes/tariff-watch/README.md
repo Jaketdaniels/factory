@@ -37,11 +37,16 @@ curl https://tariff.watch/calendar.ics           # effective dates, comments, he
 Dated snapshots never change once their day has passed — useful when an agent
 needs to prove what was known on a given date.
 
+Free surfaces are rate-limited to ~120 requests/minute per IP (per Cloudflare
+location) as an abuse brake; normal browsing, feed readers, and calendar
+clients never approach it. Keyed API traffic is governed by billing, not
+rate limits.
+
 ### JSON API
 
 ```sh
 # Get a key: add a card at https://tariff.watch/#plans (Stripe Checkout,
-# $0 due today; first 30 API calls/month free, then US$0.10 per API call).
+# $0 due today; your first 30 API calls are free, then US$0.10 per call).
 # The key is shown once in the browser and never emailed.
 
 # Query structured changes
@@ -70,8 +75,8 @@ monthly for actual usage (Stripe Billing Meters; no hard caps, cancel anytime).
 
 ## How it works
 
-A Cloudflare Worker (Hono + D1) with a daily cron (14:00 UTC, after the
-Federal Register's morning publication):
+A Cloudflare Worker (Hono + D1) polling four times daily (02/08/14/20 UTC,
+bracketing the Federal Register's morning publication):
 
 1. **Ingest** — query the [Federal Register API](https://www.federalregister.gov/developers/documentation/api/v1)
    for the trade agencies + presidential tariff documents (3-day look-back so

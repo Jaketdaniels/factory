@@ -116,6 +116,35 @@ async function meterBearerRequest(
 	return null;
 }
 
+/**
+ * Free-surface abuse brake on the GA Workers rate-limit binding
+ * (https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/).
+ * Keyed by client IP: anonymous surfaces have no stabler handle, and the
+ * generous per-colo threshold (120/min) makes IP keying an abuse brake
+ * rather than the accounting system the docs warn against. Binding-optional
+ * so local/test runtimes without the simulator pass through.
+ */
+async function allowFreeSurface(c: {
+	req: { header: (name: string) => string | undefined };
+	env: Env;
+}): Promise<boolean> {
+	const limiter = (c.env as { FREE_RL?: RateLimit }).FREE_RL;
+	if (limiter === undefined) {
+		return true;
+	}
+	const key = c.req.header("cf-connecting-ip") ?? "anonymous";
+	try {
+		const { success } = await limiter.limit({ key });
+		return success;
+	} catch {
+		return true;
+	}
+}
+
+function rateLimited(c: { header: (name: string, value: string) => void }): void {
+	c.header("retry-after", "30");
+}
+
 /** Constant-time string comparison via hashed digests (lengths may differ). */
 async function timingSafeEqualStrings(a: string, b: string): Promise<boolean> {
 	const encoder = new TextEncoder();
@@ -158,6 +187,10 @@ const app = new Hono<AppEnv>()
 	.notFound((c) => c.json(errorBody("not_found", "No such route."), 404))
 
 	.get("/", async (c) => {
+		if (!(await allowFreeSurface(c))) {
+			rateLimited(c);
+			return c.json(errorBody("rate_limited", "Too many requests from this address. Try again shortly."), 429);
+		}
 		c.executionCtx.waitUntil(track(c.env.DB, "pageview", { path: "/" }));
 		const today = isoDate(new Date());
 		const [docsResult, snapshotRow, lastIngestRow, upcomingResult] = await Promise.all([
@@ -213,7 +246,11 @@ const app = new Hono<AppEnv>()
 	.get("/healthz", (c) => c.json({ ok: true }))
 
 	// Agent-facing index: what this service is and how to consume it.
-	.get("/llms.txt", (c) => {
+	.get("/llms.txt", async (c) => {
+		if (!(await allowFreeSurface(c))) {
+			rateLimited(c);
+			return c.json(errorBody("rate_limited", "Too many requests from this address. Try again shortly."), 429);
+		}
 		c.header("content-type", "text/markdown; charset=utf-8");
 		return c.body(`# tariff-watch
 
@@ -247,6 +284,10 @@ Every fact links to its primary federalregister.gov document.
 	// Data changes at most daily (14:00 UTC cron); feed readers and calendar
 	// clients poll on their own schedules, so let the edge absorb them.
 	.get("/feed.xml", async (c) => {
+		if (!(await allowFreeSurface(c))) {
+			rateLimited(c);
+			return c.json(errorBody("rate_limited", "Too many requests from this address. Try again shortly."), 429);
+		}
 		const actions = await listTradeActions(c.env.DB, { since: "1970-01-01", limit: 20 });
 		c.header("content-type", "application/rss+xml; charset=utf-8");
 		c.header("cache-control", "public, max-age=3600");
@@ -254,6 +295,10 @@ Every fact links to its primary federalregister.gov document.
 	})
 
 	.get("/calendar.ics", async (c) => {
+		if (!(await allowFreeSurface(c))) {
+			rateLimited(c);
+			return c.json(errorBody("rate_limited", "Too many requests from this address. Try again shortly."), 429);
+		}
 		const actions = await listTradeActions(c.env.DB, { since: "1970-01-01", limit: 100 });
 		c.header("content-type", "text/calendar; charset=utf-8");
 		c.header("cache-control", "public, max-age=3600");
@@ -294,6 +339,10 @@ Every fact links to its primary federalregister.gov document.
 	)
 
 	.get("/snapshot/latest.md", async (c) => {
+		if (!(await allowFreeSurface(c))) {
+			rateLimited(c);
+			return c.json(errorBody("rate_limited", "Too many requests from this address. Try again shortly."), 429);
+		}
 		const row = await c.env.DB.prepare(
 			"SELECT snapshot_date, markdown FROM snapshots ORDER BY snapshot_date DESC LIMIT 1",
 		).first();

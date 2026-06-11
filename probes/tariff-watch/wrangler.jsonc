@@ -38,6 +38,11 @@
 	// Transactional email (key receipts) via Cloudflare Email Service; the
 	// sender domain netm8.com is onboarded for Email Sending on this account.
 	"send_email": [{ "name": "EMAIL" }],
+	// Free-surface abuse brake: 120 req/min per client IP per Cloudflare
+	// location (the binding is per-colo and eventually consistent — an abuse
+	// brake, not an accounting system). Config + semantics per
+	// https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
+	"ratelimits": [{ "name": "FREE_RL", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } }],
 	// Ingest four times daily (02/08/14/20 UTC) — the Federal Register
 	// publishes ~6am ET (≈10-11 UTC); off-the-hour minute avoids the herd.
 	// Multiple/list cron expressions per
