@@ -39,6 +39,115 @@ function claimRequest(sessionId: string): Request {
 	});
 }
 
+describe("standing tier", () => {
+	const server = setupServer();
+
+	beforeAll(() => {
+		server.listen({ onUnhandledRequest: "error" });
+	});
+	afterEach(() => {
+		server.resetHandlers();
+	});
+	afterAll(() => {
+		server.close();
+	});
+	beforeEach(clearTables);
+
+	it("creates a two-line-item checkout (flat + meter) tagged with the plan", async () => {
+		let body = "";
+		server.use(
+			http.post("https://api.stripe.com/v1/checkout/sessions", async ({ request }) => {
+				body = new TextDecoder().decode(await request.arrayBuffer());
+				return HttpResponse.json({ id: "cs_standing_1", url: "https://checkout.stripe.com/c/cs_standing_1" });
+			}),
+		);
+		const res = await SELF.fetch("https://example.com/billing/checkout", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ email: "standing@example.com", plan: "standing" }),
+		});
+		expect(res.status).toBe(200);
+		const params = new URLSearchParams(body);
+		expect(params.get("line_items[0][price]")).toBe(env.STRIPE_STANDING_PRICE_ID);
+		expect(params.get("line_items[0][quantity]")).toBe("1");
+		expect(params.get("line_items[1][price]")).toBe(env.STRIPE_PRICE_ID);
+		expect(params.get("line_items[1][quantity]")).toBeNull();
+		expect(params.get("metadata[plan]")).toBe("standing");
+		expect(params.get("custom_text[submit][message]")).toContain("$29/month");
+	});
+
+	it("provisions a standing key from the plan metadata on the webhook", async () => {
+		const event = completedSessionEvent("cs_standing_2", "sub_standing_2") as {
+			data: { object: Record<string, unknown> };
+		};
+		event.data.object.metadata = { plan: "standing" };
+		expect((await deliverWebhook(event as Record<string, unknown>)).status).toBe(200);
+
+		const reserved = await env.DB.prepare(
+			"SELECT plan FROM provisioned_keys WHERE checkout_session_id = 'cs_standing_2'",
+		).first<{ plan: string }>();
+		expect(reserved?.plan).toBe("standing");
+
+		const claim = await SELF.fetch(claimRequest("cs_standing_2"));
+		expect(claim.status).toBe(200);
+		const key = await env.DB.prepare(
+			"SELECT COALESCE(tier, plan) AS plan FROM api_keys WHERE stripe_subscription_id = 'sub_standing_2'",
+		).first<{
+			plan: string;
+		}>();
+		expect(key?.plan).toBe("standing");
+	});
+
+	it("bills standing keys only beyond the monthly inclusion", async () => {
+		let meterEvents = 0;
+		server.use(
+			http.post("https://api.stripe.com/v1/billing/meter_events", () => {
+				meterEvents += 1;
+				return HttpResponse.json({ identifier: `me_${meterEvents}` });
+			}),
+		);
+		const { rawKey, id } = await createApiKey(env.DB, {
+			plan: "standing",
+			monthlyQuota: 1000000,
+			email: "standing@example.com",
+			stripeCustomerId: "cus_standing_1",
+			stripeSubscriptionId: "sub_standing_1",
+		});
+		// Pre-seed this month's usage to one call under the inclusion.
+		const included = env.STANDING_INCLUDED_CALLS;
+		const seed = Array.from({ length: included - 1 }, () =>
+			env.DB.prepare("INSERT INTO usage_events (id, key_id, route, qty) VALUES (?, ?, 'changes', 1)").bind(
+				crypto.randomUUID(),
+				id,
+			),
+		);
+		for (let i = 0; i < seed.length; i += 50) {
+			await env.DB.batch(seed.slice(i, i + 50));
+		}
+
+		// Call #included stays covered by the flat fee...
+		expect(
+			(
+				await SELF.fetch(
+					new Request("https://example.com/v1/changes?limit=1", { headers: { authorization: `Bearer ${rawKey}` } }),
+				)
+			).status,
+		).toBe(200);
+		await new Promise((resolve) => setTimeout(resolve, 30));
+		expect(meterEvents).toBe(0);
+		// ...and call #included+1 reports as overage.
+		expect(
+			(
+				await SELF.fetch(
+					new Request("https://example.com/v1/changes?limit=1", { headers: { authorization: `Bearer ${rawKey}` } }),
+				)
+			).status,
+		).toBe(200);
+		await new Promise((resolve) => setTimeout(resolve, 30));
+		expect(meterEvents).toBe(1);
+	});
+});
+
 describe("lifetime free allowance", () => {
 	const server = setupServer();
 

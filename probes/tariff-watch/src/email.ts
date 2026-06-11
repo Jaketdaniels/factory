@@ -60,6 +60,19 @@ Questions: reply to this email.</p>`;
 	return { subject, text, html };
 }
 
+/** Plain-text alert sender for watchlist notifications (binding-optional). */
+export function makeEmailSink(env: Env): { sendEmail: (to: string, subject: string, text: string) => Promise<void> } {
+	const sender = (env as unknown as { EMAIL?: EmailSender }).EMAIL;
+	return {
+		async sendEmail(to: string, subject: string, text: string): Promise<void> {
+			if (sender === undefined) {
+				return;
+			}
+			await sender.send({ to, from: FROM, replyTo: REPLY_TO, subject, text });
+		},
+	};
+}
+
 /**
  * Fire-and-forget sender for use inside waitUntil: a missing binding (tests,
  * local dev) or a provider error must never break the key flow.

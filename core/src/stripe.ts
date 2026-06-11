@@ -98,6 +98,7 @@ export const checkoutSessionCompletedSchema = z.object({
 	subscription: z.string().nullish(),
 	client_reference_id: z.string().nullish(),
 	customer_details: z.object({ email: z.string().nullish() }).nullish(),
+	metadata: z.record(z.string(), z.string()).nullish(),
 });
 export type CheckoutSessionCompleted = z.infer<typeof checkoutSessionCompletedSchema>;
 
@@ -142,6 +143,12 @@ async function stripePost<T>(
 const checkoutSessionSchema = z.object({ id: z.string(), url: z.string().nullable() });
 export type CheckoutSession = z.infer<typeof checkoutSessionSchema>;
 
+export interface CheckoutLineItem {
+	priceId: string;
+	/** Licensed (flat) prices need quantity 1; metered prices must omit it. */
+	metered: boolean;
+}
+
 export interface CreateCheckoutSessionInput {
 	secretKey: string;
 	priceId: string;
@@ -150,6 +157,11 @@ export interface CreateCheckoutSessionInput {
 	customerEmail?: string | undefined;
 	/** Usage-based (metered) prices reject `quantity` on line items. */
 	meteredPrice?: boolean | undefined;
+	/** Additional line items (e.g. a flat Standing fee alongside the meter). */
+	extraLineItems?: CheckoutLineItem[] | undefined;
+	/** Copied onto the session and surfaced in checkout.session.completed —
+	 * used to carry the chosen plan into webhook provisioning. */
+	metadata?: Record<string, string> | undefined;
 	/** Shown on the Checkout page above the pay button — use it to spell out
 	 * free allowances so a $0-due-today metered subscription is unambiguous. */
 	submitNote?: string | undefined;
@@ -169,6 +181,15 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
 	};
 	if (input.meteredPrice !== true) {
 		form["line_items[0][quantity]"] = "1";
+	}
+	for (const [i, item] of (input.extraLineItems ?? []).entries()) {
+		form[`line_items[${i + 1}][price]`] = item.priceId;
+		if (!item.metered) {
+			form[`line_items[${i + 1}][quantity]`] = "1";
+		}
+	}
+	for (const [key, value] of Object.entries(input.metadata ?? {})) {
+		form[`metadata[${key}]`] = value;
 	}
 	if (input.customerEmail !== undefined) {
 		form.customer_email = input.customerEmail;

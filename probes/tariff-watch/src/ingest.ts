@@ -1,6 +1,15 @@
 import { z } from "zod";
+import { makeEmailSink } from "./email";
 import { fetchTradeDocuments, type TradeDocument } from "./federal-register";
-import { classifyTradeDocument, parseAgencies, storedTradeActionRowSchema, TRADE_ACTION_COLUMNS } from "./trade-action";
+import {
+	classifyTradeDocument,
+	type PublicTradeAction,
+	parseAgencies,
+	storedTradeActionRowSchema,
+	TRADE_ACTION_COLUMNS,
+	toPublicTradeAction,
+} from "./trade-action";
+import { evaluateWatchlists } from "./watchlists";
 
 export interface IngestResult {
 	fetched: number;
@@ -8,6 +17,8 @@ export interface IngestResult {
 	inserted: number;
 	snapshotDate: string;
 	snapshotEntryCount: number;
+	alertEmails: number;
+	alertWebhooks: number;
 }
 
 const LOOKBACK_DAYS = 3;
@@ -60,12 +71,17 @@ WHERE tariff_documents.title IS NOT excluded.title
 	OR tariff_documents.source_id IS NOT excluded.source_id
 	OR tariff_documents.confidence IS NOT excluded.confidence`;
 
-async function upsertDocuments(db: D1Database, docs: TradeDocument[]): Promise<number> {
+async function upsertDocuments(
+	db: D1Database,
+	docs: TradeDocument[],
+): Promise<{ written: number; writtenActions: PublicTradeAction[] }> {
 	let written = 0;
+	const writtenActions: PublicTradeAction[] = [];
 	for (let i = 0; i < docs.length; i += BATCH_SIZE) {
 		const chunk = docs.slice(i, i + BATCH_SIZE);
-		const statements = chunk.map((doc) => {
-			const metadata = classifyTradeDocument(doc);
+		const metadatas = chunk.map((doc) => classifyTradeDocument(doc));
+		const statements = chunk.map((doc, idx) => {
+			const metadata = metadatas[idx] as ReturnType<typeof classifyTradeDocument>;
 			return db
 				.prepare(UPSERT_DOCUMENT_SQL)
 				.bind(
@@ -88,11 +104,34 @@ async function upsertDocuments(db: D1Database, docs: TradeDocument[]): Promise<n
 				);
 		});
 		const results = await db.batch(statements);
-		for (const result of results) {
-			written += result.meta.changes;
+		for (const [idx, result] of results.entries()) {
+			if (result.meta.changes > 0) {
+				written += result.meta.changes;
+				const doc = chunk[idx] as TradeDocument;
+				const metadata = metadatas[idx] as ReturnType<typeof classifyTradeDocument>;
+				writtenActions.push(
+					toPublicTradeAction({
+						document_number: doc.documentNumber,
+						title: doc.title,
+						doc_type: doc.docType,
+						abstract: doc.abstract,
+						publication_date: doc.publicationDate,
+						url: doc.url,
+						agencies: JSON.stringify(doc.agencies),
+						program: metadata.program,
+						legal_status: metadata.legalStatus,
+						effective_on: metadata.effectiveOn,
+						comments_close_on: metadata.commentsCloseOn,
+						hearing_on: metadata.hearingOn,
+						source_type: metadata.sourceType,
+						source_id: metadata.sourceId,
+						confidence: metadata.confidence,
+					}),
+				);
+			}
 		}
 	}
-	return written;
+	return { written, writtenActions };
 }
 
 function truncate(text: string, max = 280): string {
@@ -157,7 +196,10 @@ export async function runIngest(env: Env, now: Date, options: IngestOptions = {}
 	const snapshotDate = isoDate(now);
 	const fetchSince = options.sinceDate ?? daysBefore(now, LOOKBACK_DAYS);
 	const docs = await fetchTradeDocuments(fetchSince);
-	const inserted = await upsertDocuments(env.DB, docs);
+	const { written: inserted, writtenActions } = await upsertDocuments(env.DB, docs);
+	// Alert matching watchlists for every document this run actually wrote
+	// (idempotent: the alert ledger keys on watchlist x document x channel).
+	const alerts = await evaluateWatchlists(env.DB, writtenActions, makeEmailSink(env), now.getTime());
 
 	const windowStart = daysBefore(now, SNAPSHOT_WINDOW_DAYS);
 	const { results } = await env.DB.prepare(
@@ -173,5 +215,12 @@ export async function runIngest(env: Env, now: Date, options: IngestOptions = {}
 		.bind(snapshotDate, markdown, windowDocs.length)
 		.run();
 
-	return { fetched: docs.length, inserted, snapshotDate, snapshotEntryCount: windowDocs.length };
+	return {
+		fetched: docs.length,
+		inserted,
+		snapshotDate,
+		snapshotEntryCount: windowDocs.length,
+		alertEmails: alerts.emails,
+		alertWebhooks: alerts.webhooks,
+	};
 }

@@ -23,7 +23,7 @@ export function generateApiKey(prefix = "fk"): string {
 	return `${prefix}_${base64Url(bytes)}`;
 }
 
-export const planSchema = z.enum(["free", "pro"]);
+export const planSchema = z.enum(["free", "pro", "standing"]);
 export type Plan = z.infer<typeof planSchema>;
 
 export const apiKeyRecordSchema = z.object({
@@ -45,7 +45,9 @@ export async function findApiKey(db: D1Database, rawKey: string): Promise<ApiKey
 	const hash = await sha256Hex(rawKey);
 	const row = await db
 		.prepare(
-			"SELECT id, key_hash, key_hint, plan, monthly_quota, status, email, stripe_customer_id, stripe_subscription_id, created_at FROM api_keys WHERE key_hash = ?",
+			// tier supersedes plan when present: the historical CHECK constraint
+			// on plan couldn't be widened in-place on D1 (see migration notes).
+			"SELECT id, key_hash, key_hint, COALESCE(tier, plan) AS plan, monthly_quota, status, email, stripe_customer_id, stripe_subscription_id, created_at FROM api_keys WHERE key_hash = ?",
 		)
 		.bind(hash)
 		.first();
@@ -75,12 +77,14 @@ export async function createApiKey(db: D1Database, input: CreateApiKeyInput): Pr
 	const id = crypto.randomUUID();
 	await db
 		.prepare(
-			"INSERT INTO api_keys (id, key_hash, key_hint, plan, monthly_quota, email, stripe_customer_id, stripe_subscription_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			"INSERT INTO api_keys (id, key_hash, key_hint, plan, tier, monthly_quota, email, stripe_customer_id, stripe_subscription_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		)
 		.bind(
 			id,
 			await sha256Hex(rawKey),
 			rawKey.slice(0, 8),
+			// plan keeps a value the original CHECK accepts; tier is exact.
+			input.plan === "standing" ? "pro" : input.plan,
 			input.plan,
 			input.monthlyQuota,
 			input.email ?? null,

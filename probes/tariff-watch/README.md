@@ -65,6 +65,21 @@ Pay as you go via `POST /billing/checkout`: $0/month base; your first 30 API
 calls are free (a month of daily updates), then US$0.10 per call — billed
 monthly for actual usage (Stripe Billing Meters; no hard caps, cancel anytime).
 
+### Watchlists + Standing ($29/mo)
+
+Standing includes 300 calls/month and watchlist alerts; checkout with
+`{"email":"...","plan":"standing"}`. Watchlists are keyed and never billed:
+
+```sh
+curl -X POST -H "Authorization: Bearer <key>" -H "Content-Type: application/json" \
+  -d '{"kind":"program","value":"section_232","webhook_url":"https://yours.example/hook"}' \
+  https://tariff.watch/v1/watchlists
+```
+
+Alerts arrive by email and an HMAC-signed webhook (`tariff-watch-signature`,
+Stripe-style `t=...,v1=...` over `${t}.${body}`; the signing secret is
+returned once at creation).
+
 ### MCP
 
 `POST /mcp` exposes a minimal stateless JSON-RPC MCP surface:

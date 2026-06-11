@@ -220,6 +220,7 @@ export interface LandingInput {
 	freeQuota: number;
 	baseUrl: string;
 	upcoming: UpcomingDeadline[];
+	standingCalls: number;
 	/** SQLite datetime ("YYYY-MM-DD HH:MM:SS", UTC) of the latest ingest run. */
 	lastCheckedAt: string | null;
 }
@@ -250,7 +251,7 @@ function statusBadge(status: string): string {
 }
 
 export function landingPage(input: LandingInput): string {
-	const { docs, latestSnapshotDate, freeQuota, baseUrl, upcoming, lastCheckedAt } = input;
+	const { docs, latestSnapshotDate, freeQuota, baseUrl, upcoming, lastCheckedAt, standingCalls } = input;
 
 	const deadlineList =
 		upcoming.length === 0
@@ -364,6 +365,17 @@ curl -H "Authorization: Bearer $TARIFF_WATCH_KEY" ${safeBase}/snapshot/2026-06-0
 <p class="meta">Key shown once after checkout, never emailed. Receipt and deletion link land in your inbox.</p>
 </section>
 
+<section class="plan">
+<p class="price"><span class="datum">$29</span> / month — Standing</p>
+<p class="plan-detail">${standingCalls} API calls included every month, plus watchlist alerts: follow programs or agencies and get an email and an HMAC-signed webhook the moment a matching document is recorded. Overage at US$0.10 per call. Same key, same endpoints.</p>
+<form id="standing">
+<input id="standing-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for Standing checkout">
+<button type="submit">Go Standing</button>
+<p class="error" id="standing-error" role="alert" hidden></p>
+</form>
+<p class="meta">Manage watchlists with your key: <code>GET/POST /v1/watchlists</code> — never billed.</p>
+</section>
+
 <h2 id="faq">Questions</h2>
 <div class="faq">
 <div>
@@ -433,6 +445,16 @@ copyBtn.addEventListener("click", async () => {
     label.textContent = "Copy failed";
   }
   setTimeout(() => { label.textContent = "Copy as markdown"; }, 2000);
+});
+wireForm("standing", "standing-error", async (form) => {
+  const res = await fetch("/billing/checkout", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: form.email.value, plan: "standing" }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message ?? "Checkout failed. Please try again.");
+  window.location.href = data.url;
 });
 wireForm("pro", "pro-error", async (form) => {
   const res = await fetch("/billing/checkout", {

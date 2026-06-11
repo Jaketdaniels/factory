@@ -1,4 +1,5 @@
 import {
+	type ApiKeyRecord,
 	type CheckoutSessionCompleted,
 	cancelSubscription,
 	checkoutSessionCompletedSchema,
@@ -41,13 +42,28 @@ import {
 	storedTradeActionRowSchema,
 	TRADE_ACTION_COLUMNS,
 } from "./trade-action";
+import {
+	createWatchlist,
+	deleteWatchlist,
+	listWatchlists,
+	MAX_WATCHLISTS_PER_KEY,
+	watchlistKindSchema,
+} from "./watchlists";
 
 type AppEnv = {
 	Bindings: Env;
 	Variables: MeteredVariables;
 };
 
-const checkoutBodySchema = z.object({ email: z.string().email() });
+const checkoutBodySchema = z.object({
+	email: z.string().email(),
+	plan: z.enum(["payg", "standing"]).default("payg"),
+});
+const watchlistBodySchema = z.object({
+	kind: watchlistKindSchema,
+	value: z.string().min(1).max(200),
+	webhook_url: z.string().url().startsWith("https://").optional(),
+});
 const sessionIdSchema = z.object({ session_id: z.string().min(1) });
 const deleteBodySchema = z.object({ email: z.string().email() });
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -127,6 +143,26 @@ async function meterBearerRequest(
 	return null;
 }
 
+/** Auth without metering: watchlist management is keyed but never billed. */
+async function authenticateBearer(c: {
+	req: { header: (name: string) => string | undefined };
+	env: Env;
+}): Promise<{ record: ApiKeyRecord } | MeterDenied> {
+	const rawKey = c.req.header("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+	if (rawKey === undefined) {
+		return {
+			status: 401,
+			rpcCode: -32001,
+			message: "Provide an API key: Authorization: Bearer <key>. Get one at https://tariff.watch/#plans",
+		};
+	}
+	const record = await findApiKey(c.env.DB, rawKey);
+	if (record === null || record.status !== "active") {
+		return { status: 401, rpcCode: -32001, message: "Unknown or revoked API key." };
+	}
+	return { record };
+}
+
 /**
  * Free-surface abuse brake on the GA Workers rate-limit binding
  * (https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/).
@@ -172,10 +208,17 @@ async function timingSafeEqualStrings(a: string, b: string): Promise<boolean> {
  * raw key is ever persisted.
  */
 async function reserveSession(env: Env, session: CheckoutSessionCompleted): Promise<void> {
+	const plan = session.metadata?.plan === "standing" ? "standing" : "payg";
 	await env.DB.prepare(
-		"INSERT INTO provisioned_keys (checkout_session_id, email, stripe_customer_id, stripe_subscription_id) VALUES (?, ?, ?, ?) ON CONFLICT(checkout_session_id) DO NOTHING",
+		"INSERT INTO provisioned_keys (checkout_session_id, email, stripe_customer_id, stripe_subscription_id, plan) VALUES (?, ?, ?, ?, ?) ON CONFLICT(checkout_session_id) DO NOTHING",
 	)
-		.bind(session.id, session.customer_details?.email ?? null, session.customer ?? null, session.subscription ?? null)
+		.bind(
+			session.id,
+			session.customer_details?.email ?? null,
+			session.customer ?? null,
+			session.subscription ?? null,
+			plan,
+		)
 		.run();
 }
 
@@ -185,6 +228,7 @@ const provisionedRowSchema = z.object({
 	stripe_subscription_id: z.string().nullable(),
 	claimed_at: z.string().nullable(),
 	revoked_at: z.string().nullable(),
+	plan: z.enum(["payg", "standing"]).catch("payg"),
 });
 
 /** The key reveal carries a secret: never cache, never leak the URL via referrer. */
@@ -251,6 +295,7 @@ const app = new Hono<AppEnv>()
 				baseUrl: c.env.APP_BASE_URL,
 				upcoming,
 				lastCheckedAt: lastChecked?.created_at ?? null,
+				standingCalls: c.env.STANDING_INCLUDED_CALLS,
 			}),
 		);
 	})
@@ -288,6 +333,7 @@ once and never emailed.
 - GET /v1/changes?since=YYYY-MM-DD&limit=50 returns structured documents: number, title, type, abstract, publication date, agencies, program, legal status, effective dates, confidence, and primary-source URL.
 - GET /snapshot/YYYY-MM-DD.md: the immutable dated archive for point-in-time grounding ("what was known on this date").
 - POST /mcp: tools/call meters per call; initialize and tools/list are open. Tools: tariffs_list_changes, tariffs_effective_dates, tariffs_get_source.
+- Watchlists (keyed, never billed): GET/POST /v1/watchlists and DELETE /v1/watchlists/<id>. Body: {"kind":"program"|"agency","value":"...","webhook_url":"https://..."} — alerts arrive by email and HMAC-signed webhook when matching documents are recorded. Standing plan ($29/mo, 300 calls included) checkout: POST /billing/checkout with {"email":"...","plan":"standing"}.
 - Delete your key and its data anytime: POST /account/delete with {"email": "..."} or visit /account/delete.
 
 Every fact links to its primary federalregister.gov document.
@@ -516,6 +562,71 @@ Terms (attribution, redistribution, licensing): /terms
 		});
 	})
 
+	// Watchlist management: keyed, never billed. The webhook signing secret is
+	// returned exactly once, on creation.
+	.get("/v1/watchlists", async (c) => {
+		const auth = await authenticateBearer(c);
+		if (!("record" in auth)) {
+			return c.json(errorBody("missing_api_key", auth.message), auth.status);
+		}
+		const rows = await listWatchlists(c.env.DB, auth.record.id);
+		return c.json({
+			watchlists: rows.map((w) => ({
+				id: w.id,
+				kind: w.kind,
+				value: w.value,
+				webhook_url: w.webhook_url,
+				created_at: w.created_at,
+			})),
+		});
+	})
+
+	.post("/v1/watchlists", zValidator("json", watchlistBodySchema), async (c) => {
+		const auth = await authenticateBearer(c);
+		if (!("record" in auth)) {
+			return c.json(errorBody("missing_api_key", auth.message), auth.status);
+		}
+		const existing = await listWatchlists(c.env.DB, auth.record.id);
+		if (existing.length >= MAX_WATCHLISTS_PER_KEY) {
+			return c.json(errorBody("watchlist_limit", `Maximum ${MAX_WATCHLISTS_PER_KEY} watchlists per key.`), 409);
+		}
+		const body = c.req.valid("json");
+		if (existing.some((w) => w.kind === body.kind && w.value === body.value)) {
+			return c.json(errorBody("duplicate_watchlist", "That watchlist already exists on this key."), 409);
+		}
+		const created = await createWatchlist(c.env.DB, {
+			keyId: auth.record.id,
+			kind: body.kind,
+			value: body.kind === "program" ? body.value.toLowerCase() : body.value,
+			webhookUrl: body.webhook_url,
+		});
+		c.executionCtx.waitUntil(track(c.env.DB, "watchlist_created", { kind: body.kind }));
+		return c.json(
+			{
+				id: created.id,
+				kind: created.kind,
+				value: created.value,
+				webhook_url: created.webhook_url,
+				// Shown once: verify deliveries like a Stripe signature
+				// (HMAC-SHA256 over `${t}.${body}` in tariff-watch-signature).
+				webhook_secret: created.webhook_secret,
+			},
+			201,
+		);
+	})
+
+	.delete("/v1/watchlists/:id", async (c) => {
+		const auth = await authenticateBearer(c);
+		if (!("record" in auth)) {
+			return c.json(errorBody("missing_api_key", auth.message), auth.status);
+		}
+		const removed = await deleteWatchlist(c.env.DB, auth.record.id, c.req.param("id"));
+		if (!removed) {
+			return c.json(errorBody("not_found", "No such watchlist on this key."), 404);
+		}
+		return c.json({ deleted: true });
+	})
+
 	// Operational trigger for ingest (cron does this daily). Requires ADMIN_TOKEN.
 	// Optional JSON body {"since":"YYYY-MM-DD"} widens the fetch window — the
 	// backfill path that re-pulls and reclassifies historical rows after
@@ -542,18 +653,32 @@ Terms (attribution, redistribution, licensing): /terms
 	})
 
 	.post("/billing/checkout", zValidator("json", checkoutBodySchema), async (c) => {
-		const { email } = c.req.valid("json");
+		const { email, plan } = c.req.valid("json");
 		const secrets = getStripeSecrets(c.env);
-		const session = await createCheckoutSession({
-			secretKey: secrets.STRIPE_SECRET_KEY,
-			priceId: c.env.STRIPE_PRICE_ID,
-			successUrl: `${c.env.APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-			cancelUrl: `${c.env.APP_BASE_URL}/`,
-			customerEmail: email,
-			meteredPrice: true,
-			submitNote: `Your first ${c.env.FREE_CALL_ALLOWANCE} API calls are free — about a month of daily updates. US$0.10 per API call after that, billed monthly for actual usage. $0 is due today. Cancel anytime.`,
-		});
-		c.executionCtx.waitUntil(track(c.env.DB, "checkout_started"));
+		const session = await createCheckoutSession(
+			plan === "standing"
+				? {
+						secretKey: secrets.STRIPE_SECRET_KEY,
+						priceId: c.env.STRIPE_STANDING_PRICE_ID,
+						successUrl: `${c.env.APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+						cancelUrl: `${c.env.APP_BASE_URL}/`,
+						customerEmail: email,
+						extraLineItems: [{ priceId: c.env.STRIPE_PRICE_ID, metered: true }],
+						metadata: { plan: "standing" },
+						submitNote: `Standing: $29/month covering ${c.env.STANDING_INCLUDED_CALLS} API calls and watchlist alerts. Beyond that, US$0.10 per API call as overage. Cancel anytime.`,
+					}
+				: {
+						secretKey: secrets.STRIPE_SECRET_KEY,
+						priceId: c.env.STRIPE_PRICE_ID,
+						successUrl: `${c.env.APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+						cancelUrl: `${c.env.APP_BASE_URL}/`,
+						customerEmail: email,
+						meteredPrice: true,
+						metadata: { plan: "payg" },
+						submitNote: `Your first ${c.env.FREE_CALL_ALLOWANCE} API calls are free — about a month of daily updates. US$0.10 per API call after that, billed monthly for actual usage. $0 is due today. Cancel anytime.`,
+					},
+		);
+		c.executionCtx.waitUntil(track(c.env.DB, "checkout_started", { plan }));
 		return c.json({ url: session.url });
 	})
 
@@ -563,7 +688,7 @@ Terms (attribution, redistribution, licensing): /terms
 		setSensitiveHeaders(c);
 		const { session_id } = c.req.valid("query");
 		const row = await c.env.DB.prepare(
-			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at FROM provisioned_keys WHERE checkout_session_id = ?",
+			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan FROM provisioned_keys WHERE checkout_session_id = ?",
 		)
 			.bind(session_id)
 			.first();
@@ -591,7 +716,7 @@ Terms (attribution, redistribution, licensing): /terms
 			.run();
 		if (claim.meta.changes === 0) {
 			const row = await c.env.DB.prepare(
-				"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at FROM provisioned_keys WHERE checkout_session_id = ?",
+				"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan FROM provisioned_keys WHERE checkout_session_id = ?",
 			)
 				.bind(session_id)
 				.first();
@@ -602,14 +727,14 @@ Terms (attribution, redistribution, licensing): /terms
 			return c.html(successPage({ kind: lost.revoked_at !== null ? "revoked" : "claimed-before" }));
 		}
 		const row = await c.env.DB.prepare(
-			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at FROM provisioned_keys WHERE checkout_session_id = ?",
+			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan FROM provisioned_keys WHERE checkout_session_id = ?",
 		)
 			.bind(session_id)
 			.first();
 		const provisioned = provisionedRowSchema.parse(row);
 		try {
 			const created = await createApiKey(c.env.DB, {
-				plan: "pro",
+				plan: provisioned.plan === "standing" ? "standing" : "pro",
 				monthlyQuota: c.env.PRO_MONTHLY_QUOTA,
 				email: provisioned.email ?? undefined,
 				stripeCustomerId: provisioned.stripe_customer_id ?? undefined,

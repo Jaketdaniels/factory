@@ -33,7 +33,11 @@
 		// Lifetime free allowance per key ("your first month of daily updates
 		// is free") — enforced app-side by not reporting the first N calls to
 		// the meter; Stripe period tiers reset monthly and can't express this.
-		"FREE_CALL_ALLOWANCE": 30
+		"FREE_CALL_ALLOWANCE": 30,
+		// Standing tier: flat $29/mo (licensed price below) covering 300 calls
+		// per month; overage reports to the same meter at the PAYG rate.
+		"STRIPE_STANDING_PRICE_ID": "price_1ThAO2RtNOtWEuKv0LUVQTiV",
+		"STANDING_INCLUDED_CALLS": 300
 	},
 	// Transactional email (key receipts) via Cloudflare Email Service; the
 	// sender domain netm8.com is onboarded for Email Sending on this account.

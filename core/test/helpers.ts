@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 
 const STATEMENTS: string[] = [
-	"CREATE TABLE IF NOT EXISTS api_keys (id TEXT PRIMARY KEY, key_hash TEXT NOT NULL UNIQUE, key_hint TEXT NOT NULL, plan TEXT NOT NULL DEFAULT 'free', monthly_quota INTEGER NOT NULL DEFAULT 100, status TEXT NOT NULL DEFAULT 'active', email TEXT, stripe_customer_id TEXT, stripe_subscription_id TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+	"CREATE TABLE IF NOT EXISTS api_keys (id TEXT PRIMARY KEY, key_hash TEXT NOT NULL UNIQUE, key_hint TEXT NOT NULL, plan TEXT NOT NULL DEFAULT 'free', monthly_quota INTEGER NOT NULL DEFAULT 100, status TEXT NOT NULL DEFAULT 'active', email TEXT, stripe_customer_id TEXT, stripe_subscription_id TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), tier TEXT)",
 	"CREATE TABLE IF NOT EXISTS usage_events (id TEXT PRIMARY KEY, key_id TEXT NOT NULL, route TEXT NOT NULL, qty INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
 	"CREATE TABLE IF NOT EXISTS analytics_events (id TEXT PRIMARY KEY, name TEXT NOT NULL, props TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT (datetime('now')))",
 	"DELETE FROM api_keys",

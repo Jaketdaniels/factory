@@ -17,6 +17,7 @@ export {
 export { checkQuota, lifetimeUsage, monthlyUsage, type QuotaCheck, recordUsage } from "./meter";
 export { getStripeSecrets, getWebhookSecret, type StripeSecrets } from "./secrets";
 export {
+	type CheckoutLineItem,
 	type CheckoutSession,
 	type CheckoutSessionCompleted,
 	type CreateCheckoutSessionInput,
