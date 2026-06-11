@@ -153,6 +153,55 @@ const PINNED_TRADE_ACTIONS: Record<
 
 export const PINNED_DOCUMENT_NUMBERS = Object.keys(PINNED_TRADE_ACTIONS);
 
+/** URL slug for an agency display name ("U.S. Customs..." -> "u-s-customs-..."). */
+export function agencySlug(name: string): string {
+	return name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
+/** Distinct program slugs and agency names present in the store (for index pages + sitemap). */
+export async function listFacets(db: D1Database): Promise<{ programs: string[]; agencies: string[] }> {
+	const [programRows, agencyRows] = await Promise.all([
+		db.prepare("SELECT DISTINCT program FROM tariff_documents ORDER BY program").all(),
+		db.prepare("SELECT agencies FROM tariff_documents").all(),
+	]);
+	const programs = z
+		.array(z.object({ program: z.string() }))
+		.parse(programRows.results)
+		.map((r) => r.program);
+	const agencies = new Set<string>();
+	for (const row of z.array(z.object({ agencies: z.string() })).parse(agencyRows.results)) {
+		for (const name of parseAgencies(row.agencies)) {
+			agencies.add(name);
+		}
+	}
+	return { programs, agencies: [...agencies].sort() };
+}
+
+export async function listTradeActionsByProgram(db: D1Database, program: string): Promise<PublicTradeAction[]> {
+	const { results } = await db
+		.prepare(
+			`SELECT ${TRADE_ACTION_COLUMNS} FROM tariff_documents WHERE program = ? ORDER BY publication_date DESC, document_number DESC LIMIT 100`,
+		)
+		.bind(program)
+		.all();
+	return z.array(storedTradeActionRowSchema).parse(results).map(toPublicTradeAction);
+}
+
+/** All document numbers (newest first) for the sitemap. */
+export async function listDocumentNumbers(db: D1Database, limit = 1000): Promise<string[]> {
+	const { results } = await db
+		.prepare("SELECT document_number FROM tariff_documents ORDER BY publication_date DESC LIMIT ?")
+		.bind(limit)
+		.all();
+	return z
+		.array(z.object({ document_number: z.string() }))
+		.parse(results)
+		.map((r) => r.document_number);
+}
+
 export function classifyTradeDocument(doc: TradeDocument): TradeActionMetadata {
 	const normalizedText = [doc.title, doc.abstract ?? "", doc.docType, ...doc.agencies].join(" ").toLowerCase();
 	const inferred: TradeActionMetadata = {

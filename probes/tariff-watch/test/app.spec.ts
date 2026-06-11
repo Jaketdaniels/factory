@@ -396,6 +396,43 @@ describe("account deletion", () => {
 		expect(await unknown.json()).toEqual(body);
 	});
 
+	it("serves program, agency, and document pages with a sitemap", async () => {
+		await seedEvidenceDocument(
+			"2026-11296",
+			"2026-06-05",
+			"Section 301 Investigations of Forced Labor Import Prohibitions",
+		);
+
+		const program = await SELF.fetch("https://example.com/program/section_301_forced_labor");
+		expect(program.status).toBe(200);
+		expect(program.headers.get("cache-control")).toBe("public, max-age=3600");
+		const programHtml = await program.text();
+		expect(programHtml).toContain("Section 301 Investigations of Forced Labor Import Prohibitions");
+		expect(programHtml).toContain('href="/d/2026-11296"');
+
+		const agency = await SELF.fetch("https://example.com/agency/office-of-the-united-states-trade-representative");
+		expect(agency.status).toBe(200);
+		expect(await agency.text()).toContain("2026-11296");
+
+		const docPage = await SELF.fetch("https://example.com/d/2026-11296");
+		expect(docPage.status).toBe(200);
+		const docHtml = await docPage.text();
+		expect(docHtml).toContain("https://www.federalregister.gov/d/2026-11296");
+		expect(docHtml).toContain("Hearing");
+		expect(docHtml).toContain("2026-07-07");
+
+		expect((await SELF.fetch("https://example.com/program/never_seen")).status).toBe(404);
+		expect((await SELF.fetch("https://example.com/d/2026-99999")).status).toBe(404);
+
+		const sitemap = await SELF.fetch("https://example.com/sitemap.xml");
+		expect(sitemap.status).toBe(200);
+		expect(sitemap.headers.get("content-type")).toContain("application/xml");
+		const xml = await sitemap.text();
+		expect(xml).toContain("https://tariff.watch/program/section_301_forced_labor");
+		expect(xml).toContain("https://tariff.watch/d/2026-11296");
+		expect(xml).toContain("https://tariff.watch/agency/office-of-the-united-states-trade-representative");
+	});
+
 	it("serves the MCP server card at the well-known path", async () => {
 		const res = await SELF.fetch("https://example.com/.well-known/mcp.json");
 		expect(res.status).toBe(200);

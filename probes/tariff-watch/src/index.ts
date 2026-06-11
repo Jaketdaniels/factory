@@ -28,9 +28,19 @@ import serverCard from "../server.json";
 import { sendKeyCreatedEmail } from "./email";
 import { renderCalendar, renderRssFeed } from "./feeds";
 import { isoDate, runIngest } from "./ingest";
-import { deletePage, type LandingDoc, landingPage, successPage, termsPage } from "./landing";
+import { deletePage, documentPage, facetPage, type LandingDoc, landingPage, successPage, termsPage } from "./landing";
 import { handleMcpJsonRpc } from "./mcp";
-import { listTradeActions, parseAgencies, storedTradeActionRowSchema, TRADE_ACTION_COLUMNS } from "./trade-action";
+import {
+	agencySlug,
+	getTradeAction,
+	listDocumentNumbers,
+	listFacets,
+	listTradeActions,
+	listTradeActionsByProgram,
+	parseAgencies,
+	storedTradeActionRowSchema,
+	TRADE_ACTION_COLUMNS,
+} from "./trade-action";
 
 type AppEnv = {
 	Bindings: Env;
@@ -265,6 +275,7 @@ const app = new Hono<AppEnv>()
 - [Latest snapshot](/snapshot/latest.md): the last 7 days of trade actions, token-efficient Markdown, regenerated daily.
 - [RSS feed](/feed.xml): the most recent source-linked changes.
 - [Calendar feed](/calendar.ics): effective dates, comment deadlines, and hearings.
+- Browse pages: /program/<slug>, /agency/<slug>, and per-document records at /d/<document-number>; full index at /sitemap.xml.
 
 ## Keyed surfaces (Authorization: Bearer <key>)
 
@@ -376,6 +387,83 @@ Terms (attribution, redistribution, licensing): /terms
 	.get("/.well-known/mcp.json", (c) => {
 		c.header("cache-control", "public, max-age=3600");
 		return c.json(serverCard);
+	})
+
+	// Programmatic SEO: facts-only, dated, primary-linked pages generated
+	// straight from D1 — the ingest cron is the content team.
+	.get("/program/:slug", zValidator("param", z.object({ slug: z.string().regex(/^[a-z0-9_]+$/) })), async (c) => {
+		if (!(await allowFreeSurface(c))) {
+			rateLimited(c);
+			return c.json(errorBody("rate_limited", "Too many requests from this address. Try again shortly."), 429);
+		}
+		const { slug } = c.req.valid("param");
+		const actions = await listTradeActionsByProgram(c.env.DB, slug);
+		if (actions.length === 0) {
+			return c.json(errorBody("not_found", "No documents recorded for that program."), 404);
+		}
+		c.header("cache-control", "public, max-age=3600");
+		return c.html(
+			facetPage(
+				`${slug.replaceAll("_", " ")} — US trade actions`,
+				`Every ${slug.replaceAll("_", " ")} document tariff.watch has recorded from the Federal Register, newest first, with legal status and effective dates.`,
+				actions,
+			),
+		);
+	})
+
+	.get("/agency/:slug", zValidator("param", z.object({ slug: z.string().regex(/^[a-z0-9-]+$/) })), async (c) => {
+		if (!(await allowFreeSurface(c))) {
+			rateLimited(c);
+			return c.json(errorBody("rate_limited", "Too many requests from this address. Try again shortly."), 429);
+		}
+		const { slug } = c.req.valid("param");
+		const facets = await listFacets(c.env.DB);
+		const name = facets.agencies.find((candidate) => agencySlug(candidate) === slug);
+		if (name === undefined) {
+			return c.json(errorBody("not_found", "No documents recorded for that agency."), 404);
+		}
+		const recent = await listTradeActions(c.env.DB, { since: "1970-01-01", limit: 200 });
+		const actions = recent.filter((a) => a.agencies.includes(name));
+		c.header("cache-control", "public, max-age=3600");
+		return c.html(
+			facetPage(
+				`${name} — trade actions`,
+				`Documents published by ${name}, newest first, with legal status and effective dates from the Federal Register.`,
+				actions,
+			),
+		);
+	})
+
+	.get("/d/:number", zValidator("param", z.object({ number: z.string().regex(/^\d{4}-\d{3,7}$/) })), async (c) => {
+		if (!(await allowFreeSurface(c))) {
+			rateLimited(c);
+			return c.json(errorBody("rate_limited", "Too many requests from this address. Try again shortly."), 429);
+		}
+		const action = await getTradeAction(c.env.DB, c.req.valid("param").number);
+		if (action === null) {
+			return c.json(errorBody("not_found", "No such document recorded."), 404);
+		}
+		c.header("cache-control", "public, max-age=3600");
+		return c.html(documentPage(action));
+	})
+
+	.get("/sitemap.xml", async (c) => {
+		const [facets, numbers] = await Promise.all([listFacets(c.env.DB), listDocumentNumbers(c.env.DB)]);
+		const base = c.env.APP_BASE_URL;
+		const urls = [
+			`${base}/`,
+			`${base}/terms`,
+			...facets.programs.map((program) => `${base}/program/${program}`),
+			...facets.agencies.map((name) => `${base}/agency/${agencySlug(name)}`),
+			...numbers.map((n) => `${base}/d/${n}`),
+		];
+		c.header("content-type", "application/xml; charset=utf-8");
+		c.header("cache-control", "public, max-age=3600");
+		return c.body(
+			`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
+				.map((u) => `<url><loc>${u}</loc></url>`)
+				.join("\n")}\n</urlset>`,
+		);
 	})
 
 	.get("/terms", (c) => c.html(termsPage()))

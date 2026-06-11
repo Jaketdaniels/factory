@@ -135,6 +135,65 @@ ${body}
 </html>`;
 }
 
+import { agencySlug, type PublicTradeAction } from "./trade-action";
+
+function actionRow(a: PublicTradeAction): string {
+	const dates = [
+		a.effective_on === null ? null : `takes effect <span class="datum">${escapeHtml(a.effective_on)}</span>`,
+		a.comments_close_on === null ? null : `comments due <span class="datum">${escapeHtml(a.comments_close_on)}</span>`,
+		a.hearing_on === null ? null : `hearing <span class="datum">${escapeHtml(a.hearing_on)}</span>`,
+	].filter((value): value is string => value !== null);
+	return `<article class="doc">
+<a href="/d/${escapeHtml(a.document_number)}">${escapeHtml(a.title)}</a>
+<div class="meta">
+<span class="datum">${escapeHtml(a.publication_date)}</span>
+<span class="badge doctype">${escapeHtml(a.type)}</span>
+${statusBadge(a.legal_status)}
+<a class="t-program" href="/program/${escapeHtml(a.program)}">${escapeHtml(programLabel(a.program))}</a>
+${a.agencies.map((name) => `<a class="t-agency" href="/agency/${escapeHtml(agencySlug(name))}">${escapeHtml(name)}</a>`).join("")}
+${dates.length > 0 ? `<span>${dates.join(" · ")}</span>` : ""}
+</div>
+</article>`;
+}
+
+/** Index page for a program or agency facet — the cron is the content team. */
+export function facetPage(title: string, description: string, actions: PublicTradeAction[]): string {
+	return page(
+		`${title} — tariff.watch`,
+		`<h1>${escapeHtml(title)}</h1>
+<p class="lede">${escapeHtml(description)}</p>
+${actions.map(actionRow).join("\n")}
+<p class="meta">Every entry links its primary federalregister.gov document. Structured access: <a href="/llms.txt">llms.txt</a>.</p>`,
+	);
+}
+
+/** Permanent page for one trade action: the citable record. */
+export function documentPage(a: PublicTradeAction): string {
+	const rows: [string, string][] = [
+		["Published", a.publication_date],
+		["Program", programLabel(a.program)],
+		["Legal status", a.legal_status],
+		["Confidence", a.confidence],
+	];
+	if (a.effective_on !== null) rows.push(["Takes effect", a.effective_on]);
+	if (a.comments_close_on !== null) rows.push(["Comments due", a.comments_close_on]);
+	if (a.hearing_on !== null) rows.push(["Hearing", a.hearing_on]);
+	return page(
+		`${a.title} — tariff.watch`,
+		`<h1>${escapeHtml(a.title)}</h1>
+<div class="meta" style="margin-bottom:1.2rem">
+<span class="badge doctype">${escapeHtml(a.type)}</span>
+${statusBadge(a.legal_status)}
+${a.agencies.map((name) => `<a class="t-agency" href="/agency/${escapeHtml(agencySlug(name))}">${escapeHtml(name)}</a>`).join("")}
+</div>
+${rows.map(([k, v]) => `<div class="deadline"><span class="kind">${escapeHtml(k)}</span><span class="datum">${escapeHtml(v)}</span></div>`).join("\n")}
+${a.abstract === null || a.abstract.length === 0 ? "" : `<h3>Summary</h3><p>${escapeHtml(a.abstract)}</p>`}
+<h3>Primary source</h3>
+<p><a href="${escapeHtml(a.url)}" rel="noopener">${escapeHtml(a.url)}</a> — Federal Register document ${escapeHtml(a.document_number)} (US government work, public domain).</p>
+<p class="meta">Point-in-time record: <code>/snapshot/${escapeHtml(a.publication_date)}.md</code> (API key required) preserves what was known on publication day. Verify against the cited source before compliance use.</p>`,
+	);
+}
+
 export interface LandingDoc {
 	title: string;
 	docType: string;
