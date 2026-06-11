@@ -219,3 +219,5 @@ end to end — the churn loop proven, not just the build loop.
 | 2026-06-11 | Free/paid boundary: today free, history + machines metered | E33, E34, E38, E40 |
 | 2026-06-11 | FeedItemV1 adopted as feed contract; license gate strengthened; API-first collection | brightdata-proposal-review.md |
 | 2026-06-11 | Plan restructured: one complete vertical slice per task (S1–S15); repricing to $0.10/call is S1 since production still charges the launch rate | this document |
+| 2026-06-11 | Pricing corrected to a lifetime allowance: first 30 calls free ever (not per month), then $0.10/call flat — Stripe period tiers reset monthly, so the allowance is enforced app-side | JD decision; S1 redone on price_1Th6ra… |
+| 2026-06-12 | First weekly dial review (S1–S8 shipped; pre-launch): visits_7d 251, keys 3, paying 0, watchlists 0, checkouts_started_7d 7, calls_7d 1. Read: traffic is mostly own verification; no launch posts yet (gated to the §122 sunset window). No action — dials become meaningful after S7 posting day. | docs/dials/dial-pack.sql run 2026-06-11 UTC |
