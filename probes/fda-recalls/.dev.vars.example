@@ -1,0 +1,5 @@
+# Copy to .dev.vars (gitignored) for local dev.
+# Production: `wrangler secret put STRIPE_SECRET_KEY` / `wrangler secret put STRIPE_WEBHOOK_SECRET`.
+# Use a RESTRICTED Stripe key (rk_…) scoped to Checkout Sessions + Billing, not a full sk_ key.
+STRIPE_SECRET_KEY="rk_test_replace_me"
+STRIPE_WEBHOOK_SECRET="whsec_replace_me"

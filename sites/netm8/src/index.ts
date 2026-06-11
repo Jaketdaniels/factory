@@ -40,6 +40,7 @@ https://netm8.com/standards/feed-item-v1.schema.json
 
 Live feeds:
 - tariff.watch — US tariff/trade-action changes. Agent index: https://tariff.watch/llms.txt
+- recalls.netm8.com — FDA recall change events. Agent index: https://recalls.netm8.com/llms.txt
 
 Licensing: free reading with attribution; metered machine access per feed;
 commercial redistribution licensed (hello@netm8.com). Verify against the

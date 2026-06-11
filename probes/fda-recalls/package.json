@@ -1,0 +1,22 @@
+{
+	"name": "fda-recalls",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"dry-run": "wrangler deploy --dry-run",
+		"types": "wrangler types --include-runtime=false",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"migrate:local": "wrangler d1 migrations apply DB --local",
+		"migrate:remote": "wrangler d1 migrations apply DB --remote"
+	},
+	"dependencies": {
+		"@factory/core": "*",
+		"@hono/zod-validator": "^0.8.0",
+		"hono": "^4.12.25",
+		"zod": "^3.25.76"
+	}
+}

@@ -1,0 +1,38 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "fda-recalls",
+	"main": "src/index.ts",
+	"account_id": "99d4e92ade821bd5168cbe8935e719ab",
+	"compatibility_date": "2026-06-09",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			// Create per probe: `wrangler d1 create <probe-name>` then paste the id here.
+			"database_name": "fda-recalls",
+			"database_id": "a170db5a-c141-40bf-a40a-35d62fd8e2eb",
+			"migrations_dir": "migrations"
+		}
+	],
+	// Raw snapshot retention: every ingested source response is archived in R2
+	// keyed by its SHA-256 (the FeedItemV1 provenance.snapshot_hash). Create
+	// per probe: `wrangler r2 bucket create <probe-name>-raw`.
+	"r2_buckets": [{ "binding": "RAW", "bucket_name": "fda-recalls-raw" }],
+	"vars": {
+		// Public, non-secret configuration only. Secrets (STRIPE_SECRET_KEY,
+		// STRIPE_WEBHOOK_SECRET) go in `.dev.vars` locally and
+		// `wrangler secret put <NAME>` in production — never here.
+		"APP_BASE_URL": "https://recalls.netm8.com",
+		"FREE_CALL_ALLOWANCE": 30,
+		"STRIPE_PRICE_ID": "price_REPLACE_ME",
+		"PRO_MONTHLY_QUOTA": 10000
+	},
+	// openFDA publishes enforcement updates weekly (Wednesdays) but records
+	// trickle; four checks daily, offset from the tariff.watch herd.
+	"triggers": { "crons": ["17 3,9,15,21 * * *"] },
+	"routes": [{ "pattern": "recalls.netm8.com", "custom_domain": true }]
+}

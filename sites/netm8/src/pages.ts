@@ -99,9 +99,14 @@ export function homePage(): string {
 <p>US tariff, customs, and trade-action changes from the Federal Register: programs, legal status, effective dates, comment deadlines. Free daily snapshot, RSS, and calendar; metered API, MCP tools, and dated archive.</p>
 </div>
 <div class="card">
+<span class="live">live</span>
+<h3><a href="https://recalls.netm8.com">recalls.netm8.com</a></h3>
+<p>FDA food, drug, and device recalls as structured change events: severity (recall class), lifecycle status, dates, provenance with raw-snapshot hashes. From openFDA enforcement reports, checked four times daily.</p>
+</div>
+<div class="card">
 <span class="soon">in selection</span>
-<h3>Feed #2</h3>
-<p>Candidates are scored against a published rubric (source quality, license gate, buyer evidence) before any code is written. Current shortlist: export controls, FDA recalls.</p>
+<h3>Feed #3</h3>
+<p>Candidates are scored against a published rubric (source quality, license gate, buyer evidence) before any code is written. Next in queue: BIS export controls (89/100).</p>
 </div>
 
 <h2>For agents</h2>
