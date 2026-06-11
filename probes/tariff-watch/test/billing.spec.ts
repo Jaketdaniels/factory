@@ -92,10 +92,12 @@ describe("checkout", () => {
 	});
 
 	it("creates a Stripe checkout session and returns its url", async () => {
+		let checkoutBody = "";
 		server.use(
-			http.post("https://api.stripe.com/v1/checkout/sessions", () =>
-				HttpResponse.json({ id: "cs_1", url: "https://checkout.stripe.com/c/cs_1" }),
-			),
+			http.post("https://api.stripe.com/v1/checkout/sessions", async ({ request }) => {
+				checkoutBody = new TextDecoder().decode(await request.arrayBuffer());
+				return HttpResponse.json({ id: "cs_1", url: "https://checkout.stripe.com/c/cs_1" });
+			}),
 		);
 
 		const res = await SELF.fetch("https://example.com/billing/checkout", {
@@ -105,6 +107,11 @@ describe("checkout", () => {
 		});
 		expect(res.status).toBe(200);
 		await expect(res.json()).resolves.toEqual({ url: "https://checkout.stripe.com/c/cs_1" });
+		const params = new URLSearchParams(checkoutBody);
+		expect(params.get("custom_text[submit][message]")).toContain("The first 30 API calls each month are free.");
+		expect(params.get("custom_text[submit][message]")).toContain("US$0.10 per API call after that");
+		expect(params.get("custom_text[submit][message]")).toContain("Cancel anytime.");
+		expect(checkoutBody).not.toContain("US%242");
 	});
 
 	it("rejects invalid emails", async () => {

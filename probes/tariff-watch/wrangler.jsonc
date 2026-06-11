@@ -22,9 +22,9 @@
 		// STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN) go in `.dev.vars` locally and
 		// `wrangler secret put <NAME>` in production — never here.
 		"APP_BASE_URL": "https://tariff.watch",
-		// Pay as you go: graduated metered price (first 30 req/mo free, then
-		// US$2 per 1,000) on the tariff_watch_requests billing meter.
-		"STRIPE_PRICE_ID": "price_1TgqQ8RtNOtWEuKvqiuGX593",
+		// Pay as you go: graduated metered price (first 30 calls/mo free,
+		// then US$0.10 per API call) on the tariff_watch_requests meter.
+		"STRIPE_PRICE_ID": "price_1Th3caRtNOtWEuKv0aut9dUz",
 		"STRIPE_METER_EVENT_NAME": "tariff_watch_requests",
 		// Pay-as-you-go keys are billed by the meter, never quota-blocked;
 		// this quota is an abuse ceiling only.

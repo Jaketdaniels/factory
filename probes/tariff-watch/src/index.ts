@@ -221,8 +221,8 @@ const app = new Hono<AppEnv>()
 ## Keyed surfaces (Authorization: Bearer <key>)
 
 Get a key: add a card at /#plans (Stripe Checkout, $0 due today; the first 30
-requests each month are free, then US$2 per 1,000, billed monthly for actual
-usage). The key is shown once and never emailed.
+API calls each month are free, then US$0.10 per API call after that, billed
+monthly for actual usage; cancel anytime). The key is shown once and never emailed.
 
 - GET /v1/changes?since=YYYY-MM-DD&limit=50 returns structured documents: number, title, type, abstract, publication date, agencies, program, legal status, effective dates, confidence, and primary-source URL.
 - GET /snapshot/YYYY-MM-DD.md: the immutable dated archive for point-in-time grounding ("what was known on this date").
@@ -390,7 +390,7 @@ Every fact links to its primary federalregister.gov document.
 			cancelUrl: `${c.env.APP_BASE_URL}/`,
 			customerEmail: email,
 			meteredPrice: true,
-			submitNote: `The first ${c.env.FREE_MONTHLY_QUOTA} requests each month are free. Beyond that, US$2 per 1,000 requests, billed monthly for actual usage. $0 is due today.`,
+			submitNote: `The first ${c.env.FREE_MONTHLY_QUOTA} API calls each month are free. US$0.10 per API call after that, billed monthly for actual usage. $0 is due today. Cancel anytime.`,
 		});
 		c.executionCtx.waitUntil(track(c.env.DB, "checkout_started"));
 		return c.json({ url: session.url });

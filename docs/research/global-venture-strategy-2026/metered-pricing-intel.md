@@ -13,7 +13,7 @@ cap exists; "—" means the surface is not sold.
 
 | Player | Model | Free tier | Entry paid | Effective $/1k calls | MCP | Source |
 | --- | --- | --- | --- | --- | --- | --- |
-| **tariff.watch** (us) | $0-base pay-as-you-go | 30 req/mo | usage only | **$2.00 flat marginal** | metered (planned) | — |
+| **tariff.watch** (us) | $0-base pay-as-you-go | 30 req/mo | usage only | **$100.00 marginal after free allowance** | metered | — |
 | TariffsAPI | flat tiers + caps | calculator only, **no API** | $29 alerts; $49 Basic API | $4.90 (Basic, 10k); $1.99 (Pro, 100k) | only at $199 Pro | tariffsapi.com/pricing [E33] |
 | TradeFacts.io | flat, **unlimited calls** | 30-day trial | $199 | n/a (flat) — sells SLA/diffs/webhooks | — | tradefacts.io/pricing.html [E34] |
 | TariffDesk | flat, human alerts | 5 HTS codes | $29 (15 codes) | — (no API at any tier) | — | tariffdesk.com/pricing [E35] |
@@ -34,12 +34,12 @@ $250–$1,000/mo tiers) were not re-verified this pass.
 
 ## 2. Findings
 
-**F1 — The agent-call price band is $2–$15 per 1,000; we sit at the credible
-floor.** Exa $7, Tavily $8, Context7 overage $10, Exa Monitors $15, Valyu web
-$1.50, TariffsAPI effective $1.99–4.90. Our $2.00/1k is at the bottom of the
-band — defensible because our marginal cost is near zero (D1 reads of already
--ingested public data), where search APIs carry compute. The floor position
-is right for entry; it is not where revenue capture ends (see R2).
+**F1 — Commodity agent-call APIs cluster around $2–$15 per 1,000; tariff.watch
+prices the evidence call, not raw retrieval.** Exa $7, Tavily $8, Context7
+overage $10, Exa Monitors $15, Valyu web $1.50, TariffsAPI effective
+$1.99–4.90. The tariff.watch unit is a source-linked legal-status/archive
+lookup with MCP and point-in-time grounding, so the paid marginal rate should
+protect the evidence layer rather than chase commodity search usage.
 
 **F2 — Nobody in the trade vertical sells $0-base pay-as-you-go.** Every
 trade competitor monetizes through flat monthly tiers ($29–$499). We are the
@@ -95,12 +95,13 @@ usage-priced, primary-source evidence API for US trade actions. The facts are
 public domain and stay free at human pace; the product — normalized evidence
 fields, the immutable archive, machine interfaces, and alerts — is metered.
 Competitors charge $29–$499/mo before an agent can make its first structured
-call; here the first 30 calls each month cost nothing and the marginal rate
-($2/1k) is the lowest credible price in the agent band.
+call; here the first 30 calls each month cost nothing and paid calls are
+US$0.10 each.
 
-**R1 — Hold $2.00/1k + 30 free.** Validated by F1/F2. Do not lower it
-(Valyu's $1.50 web tier is a different product class); do not raise the
-marginal rate to capture revenue — capture it with R2.
+**R1 — Hold $0.10/call + 30 free.** Validated by F1/F2/F3/F5. The free
+allowance supports a month of daily update checks; the paid rate protects the
+machine-ready evidence fields, MCP tools, and dated archive. Do not discount
+into commodity search pricing; capture recurring revenue with R2.
 
 **R2 — Add a flat tier only when watchlists ship, at $29/mo.** Trigger
 condition, not a date: when per-user alerting exists (watchlists, webhooks,
@@ -147,10 +148,11 @@ with archive depth + freshness, not price).
 | Usage profile | Monthly bill | Competitor equivalent |
 | --- | --- | --- |
 | Evaluation agent, 30/mo | $0 | TariffsAPI: no API at $0 |
-| Indie agent, 1k/mo | ~$1.94 | Exa $7, Tavily $8 |
-| Production agent, 10k/mo | ~$19.94 | TariffsAPI Basic $49 |
-| Broker/ERP, 100k/mo | ~$199.94 | TariffsAPI Pro $199, TradeFacts $199 |
+| Indie agent, 1k/mo | $97.00 | TariffsAPI Basic $49; Signal Congress API+MCP $99 |
+| Production agent, 10k/mo | $997.00 | Custom usage / Standing tier candidate |
+| Broker/ERP, 100k/mo | $9,997.00 | Enterprise / licensed redistribution candidate |
 
-At catalog scale we price-match the incumbents; below it we are 60–100%
-cheaper; at evaluation scale we are the only free machine entry point in the
-vertical.
+At evaluation scale we are the only free machine entry point in the vertical.
+Sustained high-volume usage should graduate into a flat Standing tier or a
+licensed redistribution deal rather than silently turning the raw PAYG price
+into the only commercial path.

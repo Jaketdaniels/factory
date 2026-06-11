@@ -60,6 +60,10 @@ describe("public surfaces", () => {
 		expect(html).toContain("Comments due");
 		expect(html).toContain('id="pro"');
 		expect(html).toContain("/billing/checkout");
+		expect(html).toContain("30</span> free API calls every month");
+		expect(html).toContain("US$0.10 per API call");
+		expect(html).toContain("cancel anytime");
+		expect(html).not.toContain("US$2");
 		expect(html).toContain("mcpServers");
 		expect(html).toContain("claude mcp add");
 		expect(html).not.toContain("freekey");
@@ -80,7 +84,11 @@ describe("public surfaces", () => {
 		const res = await SELF.fetch("https://example.com/llms.txt");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toContain("text/markdown");
-		expect(await res.text()).toContain("/snapshot/latest.md");
+		const body = await res.text();
+		expect(body).toContain("/snapshot/latest.md");
+		expect(body).toMatch(/the first 30\s+API calls each month are free/);
+		expect(body).toContain("US$0.10 per API call after that");
+		expect(body).not.toContain("US$2");
 	});
 
 	it("serves source-first RSS and calendar feeds", async () => {

@@ -10,8 +10,8 @@ order, and when each phase is done.
 
 1. **One phase at a time.** A new phase opens only when the previous phase's
    exit criteria are checked off or explicitly waived with a dated note here.
-2. **Pricing is locked** by the evidence rules (STRATEGY.md): US$2/1k + 30
-   free; the $29 Standing tier ships with watchlists, not before; never
+2. **Pricing is locked** by the evidence rules (STRATEGY.md): US$0.10/call +
+   30 free; the $29 Standing tier ships with watchlists, not before; never
    compete on price.
 3. **Dials over opinions.** Decisions read from D1 `analytics_events` /
    `usage_events` and Stripe — weekly, same query, logged in the decision
@@ -148,7 +148,7 @@ loop.
 | Date | Decision | Basis |
 | --- | --- | --- |
 | 2026-06-10 | Probe factory adopted; tariff.watch is probe #1 | session strategy review |
-| 2026-06-11 | Usage pricing: $2/1k + 30 free; no card-less keys | E33–E43 |
+| 2026-06-11 | Usage pricing: $0.10/call + 30 free; no card-less keys | E33–E43 |
 | 2026-06-11 | Free/paid boundary: today free, history + machines metered | E33, E34, E38, E40 |
 | 2026-06-11 | FeedItemV1 adopted as feed contract; license gate strengthened; API-first collection | brightdata-proposal-review.md |
 | 2026-06-11 | This plan codified; phases 1→3 sequenced | this document |

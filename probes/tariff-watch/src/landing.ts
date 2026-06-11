@@ -58,6 +58,12 @@ a:hover { color: #e5c078; }
 code, pre, .datum, .badge { font-family: var(--mono); }
 code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.35rem; font-size: 0.85em; }
 pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; line-height: 1.55; font-size: 0.82rem; }
+.tabs { display: flex; margin: 1rem 0 0; border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; background: var(--surface); overflow-x: auto; }
+.tabs [role="tab"] { font-family: var(--mono); font-size: 0.78rem; font-weight: 500; color: var(--muted); background: none; border: none; border-radius: 0; padding: 0.55rem 1rem; cursor: pointer; box-shadow: inset 0 -2px 0 transparent; transition: color 0.15s ease; }
+.tabs [role="tab"]:hover { color: var(--text); filter: none; }
+.tabs [role="tab"]:active { transform: none; }
+.tabs [role="tab"][aria-selected="true"] { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+pre[role="tabpanel"] { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
 .datum { font-variant-numeric: tabular-nums; }
 .badge { display: inline-block; font-size: 0.72rem; border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.4rem; color: var(--muted); white-space: nowrap; }
 .badge.proposed { color: var(--accent); border-color: rgba(210, 164, 76, 0.4); }
@@ -78,13 +84,11 @@ h3 { font-size: 0.95rem; margin: 1.6rem 0 0.45rem; }
 .doc > a { color: var(--text); text-decoration: none; }
 .doc > a:hover { color: var(--accent); }
 .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: baseline; }
-.plan { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.65rem; }
-.plan.pro { border-color: rgba(210, 164, 76, 0.55); }
-.plan h3 { margin: 0; font-size: 1rem; }
-.plan .price { font-family: var(--mono); font-size: 1.25rem; margin: 0; }
-.plan .price small { font-size: 0.8rem; color: var(--muted); }
-.plan ul { margin: 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.88rem; }
-.plan form { margin-top: auto; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.plan { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem 1.6rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.plan .price { font-size: 1.05rem; font-weight: 600; margin: 0; }
+.plan .price .datum { font-size: 1.45rem; color: var(--accent); margin-right: 0.1rem; }
+.plan-detail { margin: 0; font-size: 0.88rem; color: var(--muted); max-width: 52ch; }
+.plan form { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.4rem; }
 .faq { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem 2rem; }
 .faq h3 { font-size: 0.95rem; margin: 0 0 0.35rem; }
 .faq p { margin: 0; font-size: 0.88rem; color: var(--muted); }
@@ -102,7 +106,7 @@ footer { margin-top: 4rem; padding-top: 1.4rem; border-top: 1px solid var(--bord
 footer p { margin: 0 0 0.5rem; }
 .imprint { font-family: var(--mono); font-size: 0.76rem; }
 @media (max-width: 640px) {
-	.plans, .faq { grid-template-columns: 1fr; }
+	.faq { grid-template-columns: 1fr; }
 	.deadline a { white-space: normal; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -257,41 +261,34 @@ ${deadlineList}
 ${docList}
 
 <h2 id="agents">Built for AI agents</h2>
-<p>Ground a model on the latest snapshot for free, or use a key for structured queries, MCP tools, and the dated archive.</p>
 
-<h3>Ground a model, no key</h3>
-<pre>curl ${safeBase}/snapshot/latest.md   # last 7 days, regenerated daily</pre>${snapshotNote}
+<h3>Copy this link to your LLM of choice for instant context</h3>
+<pre>${safeBase}/snapshot/latest.md   # last 7 days, regenerated daily</pre>${snapshotNote}
 
-<h3>Query the API with your key</h3>
-<pre>export TARIFF_WATCH_KEY="fk_..."
+<h3>For commercial use we offer a usage-based API</h3>
+<div class="tabs" role="tablist" aria-label="API access methods">
+<button type="button" role="tab" id="tab-rss" aria-selected="true" aria-controls="panel-rss">RSS</button>
+<button type="button" role="tab" id="tab-mcp" aria-selected="false" aria-controls="panel-mcp" tabindex="-1">MCP</button>
+<button type="button" role="tab" id="tab-curl" aria-selected="false" aria-controls="panel-curl" tabindex="-1">curl</button>
+</div>
+<pre role="tabpanel" id="panel-rss" aria-labelledby="tab-rss">${safeBase}/feed.xml   # every change, source-linked, any reader, no key</pre>
+<pre role="tabpanel" id="panel-mcp" aria-labelledby="tab-mcp" hidden>claude mcp add --transport http tariff-watch ${safeBase}/mcp \\
+  --header "Authorization: Bearer $TARIFF_WATCH_KEY"
+
+# any other MCP client
+{ "mcpServers": { "tariff-watch": {
+    "type": "http",
+    "url": "${safeBase}/mcp",
+    "headers": { "Authorization": "Bearer fk_..." } } } }</pre>
+<pre role="tabpanel" id="panel-curl" aria-labelledby="tab-curl" hidden>export TARIFF_WATCH_KEY="fk_..."
 curl -H "Authorization: Bearer $TARIFF_WATCH_KEY" "${safeBase}/v1/changes?since=2026-06-01"
 curl -H "Authorization: Bearer $TARIFF_WATCH_KEY" ${safeBase}/snapshot/2026-06-09.md</pre>
-
-<h3>Connect the MCP server</h3>
-<p class="meta">Authenticate with the same key. Claude Code:</p>
-<pre>claude mcp add --transport http tariff-watch ${safeBase}/mcp \\
-  --header "Authorization: Bearer $TARIFF_WATCH_KEY"</pre>
-<p class="meta">Any MCP client, by JSON config:</p>
-<pre>{
-  "mcpServers": {
-    "tariff-watch": {
-      "type": "http",
-      "url": "${safeBase}/mcp",
-      "headers": { "Authorization": "Bearer fk_..." }
-    }
-  }
-}</pre>
-<p class="meta">Tools: <code>tariffs_list_changes</code>, <code>tariffs_effective_dates</code>, <code>tariffs_get_source</code>. Listing tools is free; each tool call meters as one API request.</p>
+<p class="meta">MCP tools: <code>tariffs_list_changes</code>, <code>tariffs_effective_dates</code>, <code>tariffs_get_source</code>. Listing tools is free; each tool call meters as one request.</p>
 
 <h2 id="plans">Pricing</h2>
-<section class="plan pro">
-<h3>Pay as you go</h3>
-<p class="price">US$2 <small>/ 1,000 requests</small></p>
-<ul>
-<li>First ${freeQuota} requests each month are free</li>
-<li>Stripe bills last month's usage; no caps, cancel anytime</li>
-<li>One key covers the API, the MCP tools, and the dated archive</li>
-</ul>
+<section class="plan">
+<p class="price"><span class="datum">${freeQuota}</span> free API calls every month</p>
+<p class="plan-detail">Then US$0.10 per API call. Stripe bills last month's usage; no caps, cancel anytime. One key covers the API, the MCP tools, and the dated archive.</p>
 <form id="pro">
 <input id="pro-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for API key">
 <button type="submit">Get your key</button>
@@ -340,6 +337,23 @@ function wireForm(formId, errorId, onSubmit) {
     }
   });
 }
+const tabs = Array.from(document.querySelectorAll('.tabs [role="tab"]'));
+function selectTab(tab) {
+  for (const t of tabs) {
+    const selected = t === tab;
+    t.setAttribute("aria-selected", String(selected));
+    t.tabIndex = selected ? 0 : -1;
+    document.getElementById(t.getAttribute("aria-controls")).hidden = !selected;
+  }
+  tab.focus();
+}
+tabs.forEach((tab, i) => {
+  tab.addEventListener("click", () => selectTab(tab));
+  tab.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    selectTab(tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]);
+  });
+});
 const copyBtn = document.getElementById("copy-md");
 copyBtn.addEventListener("click", async () => {
   const label = copyBtn.querySelector("span");

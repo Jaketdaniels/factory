@@ -108,7 +108,7 @@ Collection policy is API-first: official APIs, bulk data, and RSS are tier 1;
 managed scraping (Bright Data Unlocker/Scraper/Browser APIs) is the fallback
 for public sources with no machine interface; the Bright Data MCP free tier is
 for candidate discovery only. Scraping fees never sit on the metered hot path
-— the $2/1k floor price depends on near-zero marginal cost.
+— the US$0.10/call price depends on near-zero marginal cost.
 
 A Factory probe is eligible only when all of these are true:
 
@@ -171,8 +171,8 @@ Metered behind the API key:
 
 Pay as you go (adopted June 2026, replacing the flat Pro tier):
 
-- $0/month base on a card-on-file subscription. The first 30 API requests
-  each month are free (one call per org per day), then US$2.00 per 1,000.
+- $0/month base on a card-on-file subscription. The first 30 API calls
+  each month are free (a month of daily updates), then US$0.10 per API call.
   Implemented as one Stripe graduated tiered price on a Billing Meter — the
   free allowance is tier one at $0, so Stripe computes every invoice and no
   quota repricing ever recurs.
@@ -183,9 +183,9 @@ Pay as you go (adopted June 2026, replacing the flat Pro tier):
 
 Pricing decision rules (evidence: metered-pricing-intel.md, E33–E43):
 
-- Hold US$2.00/1k + 30 free. The agent-call band is $2–$15/1k (Exa $7,
-  Tavily $8, Context7 overage $10, TariffsAPI effective $1.99–4.90); we hold
-  the credible floor because our marginal cost is near zero [E33, E41, E43].
+- Hold US$0.10/call + 30 free. The free allowance gives one month of daily
+  update checks, while the paid rate preserves the value of source-linked
+  status fields, MCP tools, and dated archives [E33, E38, E40, E43].
   We are the only $0-base usage-priced entrant in the trade vertical [E33–E37].
 - Add a flat "Standing" tier at US$29/mo only when watchlists/alerts ship:
   ~15,000 included calls + alerting, PAYG overage beyond. $29 is the

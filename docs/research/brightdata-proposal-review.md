@@ -56,14 +56,15 @@ ladder is:
 3. Bright Data MCP free tier (5k req/mo) — fine for *candidate discovery*
    scouting, zero commitment.
 
-This also keeps probe unit economics intact: our $2/1k floor price works
-because marginal cost is ~zero; per-request unlocker fees on the hot path
-would eat it.
+This also keeps probe unit economics intact: our US$0.10/call price works
+because marginal cost is ~zero; per-request unlocker fees on the hot path would
+eat it.
 
 **3. Billing dimensions.** Their "per source monitored / per change event"
-dimensions don't replace our evidence-locked pricing (hold $2/1k + 30 free;
-$29 Standing tier gated on watchlists — R1/R2). But "per source monitored"
-is noted as the natural meter for the future Standing tier's watchlists.
+dimensions don't replace our evidence-locked pricing (hold US$0.10/call + 30
+free; $29 Standing tier gated on watchlists — R1/R2). But "per source
+monitored" is noted as the natural meter for the future Standing tier's
+watchlists.
 
 ## Decline
 

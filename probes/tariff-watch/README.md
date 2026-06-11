@@ -41,7 +41,7 @@ needs to prove what was known on a given date.
 
 ```sh
 # Get a key: add a card at https://tariff.watch/#plans (Stripe Checkout,
-# $0 due today; first 30 requests/month free, then US$2 per 1,000).
+# $0 due today; first 30 API calls/month free, then US$0.10 per API call).
 # The key is shown once in the browser and never emailed.
 
 # Query structured changes
@@ -56,9 +56,9 @@ curl -X POST -H "Content-Type: application/json" \
 Response fields: `document_number`, `title`, `type`, `abstract`,
 `publication_date`, `agencies[]`, `program`, `legal_status`, `effective_on`,
 `comments_close_on`, `hearing_on`, `confidence`, and the primary-source `url`.
-Pay as you go via `POST /billing/checkout`: $0/month base, first 30
-requests each month free, then US$2 per 1,000 — billed monthly for actual
-usage (Stripe Billing Meters; no hard caps).
+Pay as you go via `POST /billing/checkout`: $0/month base, first 30 API calls
+each month free, then US$0.10 per API call — billed monthly for actual usage
+(Stripe Billing Meters; no hard caps, cancel anytime).
 
 ### MCP
 

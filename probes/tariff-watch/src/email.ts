@@ -35,9 +35,9 @@ For your security it is never sent by email — if you lost it, delete it below
 and create a new one.
 
 What you signed up for
-- Pay as you go: the first ${input.freeQuota} API requests each month are free.
-- US$2.00 per 1,000 requests after that, billed monthly by Stripe for actual
-  usage. $0 was charged today. Stripe emails your invoices.
+- Pay as you go: the first ${input.freeQuota} API calls each month are free.
+- US$0.10 per API call after that, billed monthly by Stripe for actual usage.
+  $0 was charged today. Stripe emails your invoices. Cancel anytime.
 
 Delete your key and data — anytime
 ${input.baseUrl}/account/delete
@@ -49,7 +49,7 @@ tariff.watch — a netm8 feed. Facts only, primary sources, immutable snapshots.
 Questions: reply to this email.`;
 	const html = `<p>Your tariff.watch API key was created and shown to you once in the browser. For your security it is never sent by email — if you lost it, delete it below and create a new one.</p>
 <p><strong>What you signed up for</strong><br>
-Pay as you go: the first ${input.freeQuota} API requests each month are free, then US$2.00 per 1,000, billed monthly by Stripe for actual usage. $0 was charged today. Stripe emails your invoices.</p>
+Pay as you go: the first ${input.freeQuota} API calls each month are free, then US$0.10 per API call after that, billed monthly by Stripe for actual usage. $0 was charged today. Stripe emails your invoices. Cancel anytime.</p>
 <p><strong>Delete your key and data — anytime</strong><br>
 <a href="${input.baseUrl}/account/delete">${input.baseUrl}/account/delete</a><br>
 Enter this email address there and your key, usage records, and address are deleted immediately. Cancelling your subscription from any Stripe invoice email also deactivates the key.</p>
