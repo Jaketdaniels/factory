@@ -98,11 +98,24 @@ servers.
 netm8 is the trust and distribution layer, not the first product by itself. It
 should define the feed contract, citation policy, source license policy, MCP
 tool conventions, billing shape, and reusable buyer promises. Vertical domains
-remain the demand-capturing assets.
+remain the demand-capturing assets. The feed contract baseline is
+**FeedItemV1** (canonical change-event schema with source, classification,
+lifecycle status, dates, change tracking, provenance, and delivery blocks) —
+adopted from the Bright Data architecture proposal with corrections; see
+[docs/research/brightdata-proposal-review.md](docs/research/brightdata-proposal-review.md).
+
+Collection policy is API-first: official APIs, bulk data, and RSS are tier 1;
+managed scraping (Bright Data Unlocker/Scraper/Browser APIs) is the fallback
+for public sources with no machine interface; the Bright Data MCP free tier is
+for candidate discovery only. Scraping fees never sit on the metered hot path
+— the $2/1k floor price depends on near-zero marginal cost.
 
 A Factory probe is eligible only when all of these are true:
 
-- The source base is public, primary, and lawful to summarize.
+- Reuse rights are affirmatively established — public domain (17 U.S.C. §105)
+  or an explicit open license with attribution carried in the feed record.
+  Public *access* alone is not eligibility (this gate rejects, for example,
+  FINRA notices).
 - The domain changes often enough that static search is inadequate.
 - The changes have dates, status, parties, thresholds, or jurisdictional scope
   that can be structured.
