@@ -188,7 +188,8 @@ Pricing decision rules (evidence: metered-pricing-intel.md, E33–E43):
   status fields, MCP tools, and dated archives [E33, E38, E40, E43].
   We are the only $0-base usage-priced entrant in the trade vertical [E33–E37].
 - Add a flat "Standing" tier at US$29/mo only when watchlists/alerts ship:
-  ~15,000 included calls + alerting, PAYG overage beyond. $29 is the
+  ~300 included calls (≈ the tier price in PAYG value at $0.10/call) +
+  alerting, PAYG overage beyond. $29 is the
   empirically dominant entry price in this vertical (TariffsAPI, TariffDesk,
   Legiseye) and creates the recurring floor PAYG lacks [E33, E35, E36].
 - Never compete on data exclusivity — the facts are public domain and the

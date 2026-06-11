@@ -32,10 +32,12 @@ boundary (today free; history + machines metered), usage billing on Stripe
 Billing Meters, key receipts by email, self-serve deletion, metered MCP
 tools, RSS/calendar/snapshots, agent setup docs.
 
-### S1 — Reprice production to US$0.10/call
+### S1 — Reprice production to US$0.10/call — ✅ done 2026-06-11
 
-The docs and evidence rules now price the evidence call at $0.10; production
-Stripe and the site still charge the launch rate ($2/1k).
+Shipped via abc8349: live graduated price `price_1Th3caRtNOtWEuKv0aut9dUz`
+(30 @ $0, then US$0.10/call) on the production meter; prior prices archived;
+copy swept across landing, llms.txt, receipt email, and READMEs; tests assert
+the old rate is absent.
 
 - Ship: new graduated metered price on the live meter (tier 1: 30 @ $0;
   tier 2: $0.10/call), archive the old price, `STRIPE_PRICE_ID` var swap,
@@ -105,7 +107,7 @@ The revenue floor. One slice, shipped whole:
 - Ship: watchlist schema (per-key program/agency/chapter subscriptions),
   watchlist CRUD on a small keyed settings page, daily alert evaluation in
   the cron, email delivery (existing Email Service binding) and HMAC-signed
-  webhooks, the `Standing` flat price in Stripe ($29/mo incl. ~15k calls,
+  webhooks, the `Standing` flat price in Stripe ($29/mo incl. ~300 calls,
   PAYG overage beyond — flat + graduated on the same meter), landing tier
   card, README/llms.txt, receipt email update, full test coverage of the
   alert evaluator and webhook signatures.

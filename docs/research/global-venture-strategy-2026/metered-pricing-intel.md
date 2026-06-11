@@ -105,7 +105,8 @@ into commodity search pricing; capture recurring revenue with R2.
 
 **R2 — Add a flat tier only when watchlists ship, at $29/mo.** Trigger
 condition, not a date: when per-user alerting exists (watchlists, webhooks,
-digests), introduce "Standing" at $29/mo including ~15,000 calls + alerting,
+digests), introduce "Standing" at $29/mo including ~300 calls (≈ the tier
+price in PAYG value at $0.10/call) + alerting,
 PAYG overage beyond. $29 is the empirically dominant entry price in this
 vertical (TariffsAPI, TariffDesk, Legiseye — F2). This creates the recurring
 floor the PAYG model lacks while keeping the PAYG wedge intact.

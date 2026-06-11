@@ -120,7 +120,8 @@ can use.
 1. Keep tariff.watch, but reposition it as a trade-action evidence layer.
 2. Add legal-status fields and effective-date outputs before building more UI.
 3. Track the June 2026 USTR forced-labor Section 301 investigations immediately.
-4. Price the first paid tier around $19/month only after watchlists, calendar,
+4. (Superseded 2026-06-11: usage pricing US$0.10/call adopted instead — see
+   metered-pricing-intel.md.) Price the first paid tier around $19/month only after watchlists, calendar,
    and webhook value exist.
 5. Defer duty calculation, Shopify checkout, and legal interpretation.
 6. Prepare exportcontrols.watch as the next stamp if tariff.watch reaches keep
