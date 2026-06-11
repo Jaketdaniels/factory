@@ -231,7 +231,7 @@ ${dates.length > 0 ? `<span>${dates.join(" · ")}</span>` : ""}
 	const snapshotNote =
 		latestSnapshotDate === null
 			? ""
-			: ` The latest snapshot is <a href="/snapshot/latest.md"><code>/snapshot/latest.md</code></a> (<span class="datum">${escapeHtml(latestSnapshotDate)}</span>).`;
+			: `\n<p class="meta">Latest snapshot: <a href="/snapshot/latest.md"><span class="datum">${escapeHtml(latestSnapshotDate)}</span></a>.</p>`;
 
 	const safeBase = escapeHtml(baseUrl);
 
@@ -257,20 +257,18 @@ ${deadlineList}
 ${docList}
 
 <h2 id="agents">Built for AI agents</h2>
-<p>Daily updates keep your agent current on US trade policy as it changes. Ground a model free with the latest snapshot, or give it your key for structured queries, MCP tools, and the dated archive.</p>
+<p>Ground a model on the latest snapshot for free, or use a key for structured queries, MCP tools, and the dated archive.</p>
 
-<h3>Ground a model — no key</h3>
-<pre>curl ${safeBase}/snapshot/latest.md   # last 7 days, regenerated daily</pre>
-<p class="meta">Or click "Copy as markdown" at the top of this page and paste straight into your agent's context.${snapshotNote}</p>
+<h3>Ground a model, no key</h3>
+<pre>curl ${safeBase}/snapshot/latest.md   # last 7 days, regenerated daily</pre>${snapshotNote}
 
-<h3>Use your key with the API</h3>
-<p class="meta">Treat the key like a password: keep it in an environment variable, never in prompts or repos.</p>
+<h3>Query the API with your key</h3>
 <pre>export TARIFF_WATCH_KEY="fk_..."
 curl -H "Authorization: Bearer $TARIFF_WATCH_KEY" "${safeBase}/v1/changes?since=2026-06-01"
 curl -H "Authorization: Bearer $TARIFF_WATCH_KEY" ${safeBase}/snapshot/2026-06-09.md</pre>
 
 <h3>Connect the MCP server</h3>
-<p class="meta">Tool calls authenticate with the same key — your email is never needed in config; it is only for receipts and deletion. Claude Code:</p>
+<p class="meta">Authenticate with the same key. Claude Code:</p>
 <pre>claude mcp add --transport http tariff-watch ${safeBase}/mcp \\
   --header "Authorization: Bearer $TARIFF_WATCH_KEY"</pre>
 <p class="meta">Any MCP client, by JSON config:</p>
@@ -283,16 +281,16 @@ curl -H "Authorization: Bearer $TARIFF_WATCH_KEY" ${safeBase}/snapshot/2026-06-0
     }
   }
 }</pre>
-<p class="meta">Tools: <code>tariffs_list_changes</code>, <code>tariffs_effective_dates</code>, <code>tariffs_get_source</code>. Listing tools is free; each tool call meters like an API request.</p>
+<p class="meta">Tools: <code>tariffs_list_changes</code>, <code>tariffs_effective_dates</code>, <code>tariffs_get_source</code>. Listing tools is free; each tool call meters as one API request.</p>
 
 <h2 id="plans">Pricing</h2>
 <section class="plan pro">
 <h3>Pay as you go</h3>
 <p class="price">US$2 <small>/ 1,000 requests</small></p>
 <ul>
-<li>First ${freeQuota} requests each month are free; $0 to start</li>
-<li>Stripe bills last month's actual usage; no caps, cancel anytime</li>
-<li>One key unlocks the API, the MCP tools, and the dated archive</li>
+<li>First ${freeQuota} requests each month are free</li>
+<li>Stripe bills last month's usage; no caps, cancel anytime</li>
+<li>One key covers the API, the MCP tools, and the dated archive</li>
 </ul>
 <form id="pro">
 <input id="pro-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for API key">
@@ -342,7 +340,7 @@ function wireForm(formId, errorId, onSubmit) {
     }
   });
 }
-<h2 id="faq">Questions</h2>const copyBtn = document.getElementById("copy-md");
+const copyBtn = document.getElementById("copy-md");
 copyBtn.addEventListener("click", async () => {
   const label = copyBtn.querySelector("span");
   try {
