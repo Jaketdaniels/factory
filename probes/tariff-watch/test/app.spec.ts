@@ -60,8 +60,12 @@ describe("public surfaces", () => {
 		expect(html).toContain("Comments due");
 		expect(html).toContain('id="pro"');
 		expect(html).toContain("/billing/checkout");
-		expect(html).toContain('id="delete-data"');
+		expect(html).toContain("mcpServers");
+		expect(html).toContain("claude mcp add");
 		expect(html).not.toContain("freekey");
+		// Deletion lives on its own page, linked from the footer.
+		expect(html).not.toContain('id="delete"');
+		expect(html).toContain('href="/account/delete"');
 		// Real domain in the examples, never a placeholder.
 		expect(html).toContain("https://tariff.watch/snapshot/latest.md");
 		expect(html).not.toContain("this-domain");
@@ -142,9 +146,24 @@ describe("public surfaces", () => {
 			"tariffs_get_source",
 		]);
 
-		const called = await SELF.fetch("https://example.com/mcp", {
+		// tools/call is metered: no key means a JSON-RPC auth error over 401.
+		const denied = await SELF.fetch("https://example.com/mcp", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				jsonrpc: "2.0",
+				id: 3,
+				method: "tools/call",
+				params: { name: "tariffs_effective_dates", arguments: { since: "2026-06-01" } },
+			}),
+		});
+		expect(denied.status).toBe(401);
+		expect(((await denied.json()) as { error: { code: number } }).error.code).toBe(-32001);
+
+		const { rawKey } = await createApiKey(env.DB, { plan: "pro", monthlyQuota: 1000000 });
+		const called = await SELF.fetch("https://example.com/mcp", {
+			method: "POST",
+			headers: { "content-type": "application/json", authorization: `Bearer ${rawKey}` },
 			body: JSON.stringify({
 				jsonrpc: "2.0",
 				id: 3,
@@ -157,13 +176,17 @@ describe("public surfaces", () => {
 		};
 		expect(callBody.result.structuredContent.dates).toContainEqual(expect.objectContaining({ date: "2026-07-06" }));
 		expect(callBody.result.content[0]?.text).toContain("2026-07-06");
+		// The call was metered like an API request.
+		const usage = await env.DB.prepare("SELECT route FROM usage_events").all();
+		expect(usage.results).toEqual([expect.objectContaining({ route: "mcp" })]);
 	});
 
 	it("answers malformed MCP traffic with JSON-RPC errors, never HTTP 500", async () => {
+		const { rawKey } = await createApiKey(env.DB, { plan: "pro", monthlyQuota: 1000000 });
 		const mcpPost = (body: string) =>
 			SELF.fetch("https://example.com/mcp", {
 				method: "POST",
-				headers: { "content-type": "application/json" },
+				headers: { "content-type": "application/json", authorization: `Bearer ${rawKey}` },
 				body,
 			});
 		type RpcError = { error: { code: number } };
@@ -216,11 +239,26 @@ describe("public surfaces", () => {
 		expect(latest.headers.get("x-snapshot-date")).toBe("2026-06-09");
 		expect(await latest.text()).toContain("2026-06-09");
 
-		const dated = await SELF.fetch("https://example.com/snapshot/2026-06-08.md");
+		// The dated archive is metered: no key means 401, never content.
+		expect((await SELF.fetch("https://example.com/snapshot/2026-06-08.md")).status).toBe(401);
+		const { rawKey } = await createApiKey(env.DB, { plan: "pro", monthlyQuota: 1000000 });
+		const dated = await SELF.fetch(
+			new Request("https://example.com/snapshot/2026-06-08.md", {
+				headers: { authorization: `Bearer ${rawKey}` },
+			}),
+		);
 		expect(dated.status).toBe(200);
 		expect(await dated.text()).toContain("2026-06-08");
 
-		expect((await SELF.fetch("https://example.com/snapshot/2026-01-01.md")).status).toBe(404);
+		expect(
+			(
+				await SELF.fetch(
+					new Request("https://example.com/snapshot/2026-01-01.md", {
+						headers: { authorization: `Bearer ${rawKey}` },
+					}),
+				)
+			).status,
+		).toBe(404);
 		expect((await SELF.fetch("https://example.com/snapshot/not-a-date.md")).status).toBe(400);
 	});
 
@@ -338,6 +376,14 @@ describe("account deletion", () => {
 		const unknown = await deleteRequest({ email: "never-seen@example.com" });
 		expect(unknown.status).toBe(200);
 		expect(await unknown.json()).toEqual(body);
+	});
+
+	it("serves the standalone deletion page", async () => {
+		const res = await SELF.fetch("https://example.com/account/delete");
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		expect(html).toContain("Delete your key");
+		expect(html).toContain('id="delete"');
 	});
 
 	it("rejects malformed bodies", async () => {

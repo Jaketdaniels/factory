@@ -40,7 +40,7 @@ What you signed up for
   usage. $0 was charged today. Stripe emails your invoices.
 
 Delete your key and data — anytime
-${input.baseUrl}/#delete-data
+${input.baseUrl}/account/delete
 Enter this email address there and your key, usage records, and address are
 deleted immediately. Cancelling your subscription from any Stripe invoice
 email also deactivates the key.
@@ -51,7 +51,7 @@ Questions: reply to this email.`;
 <p><strong>What you signed up for</strong><br>
 Pay as you go: the first ${input.freeQuota} API requests each month are free, then US$2.00 per 1,000, billed monthly by Stripe for actual usage. $0 was charged today. Stripe emails your invoices.</p>
 <p><strong>Delete your key and data — anytime</strong><br>
-<a href="${input.baseUrl}/#delete-data">${input.baseUrl}/#delete-data</a><br>
+<a href="${input.baseUrl}/account/delete">${input.baseUrl}/account/delete</a><br>
 Enter this email address there and your key, usage records, and address are deleted immediately. Cancelling your subscription from any Stripe invoice email also deactivates the key.</p>
 <p>tariff.watch — a netm8 feed. Facts only, primary sources, immutable snapshots.<br>
 Questions: reply to this email.</p>`;

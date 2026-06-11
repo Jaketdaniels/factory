@@ -2,14 +2,18 @@ import {
 	type CheckoutSessionCompleted,
 	cancelSubscription,
 	checkoutSessionCompletedSchema,
+	checkQuota,
 	createApiKey,
 	createCheckoutSession,
 	errorBody,
+	findApiKey,
 	getStripeSecrets,
 	getWebhookSecret,
 	type MeteredVariables,
 	metered,
 	onApiError,
+	recordUsage,
+	reportMeterEvent,
 	revokeKeysForSubscription,
 	stripeEventSchema,
 	subscriptionDeletedSchema,
@@ -22,7 +26,7 @@ import { z } from "zod";
 import { sendKeyCreatedEmail } from "./email";
 import { renderCalendar, renderRssFeed } from "./feeds";
 import { isoDate, runIngest } from "./ingest";
-import { type LandingDoc, landingPage, successPage } from "./landing";
+import { deletePage, type LandingDoc, landingPage, successPage } from "./landing";
 import { handleMcpJsonRpc } from "./mcp";
 import { listTradeActions, parseAgencies, storedTradeActionRowSchema, TRADE_ACTION_COLUMNS } from "./trade-action";
 
@@ -43,6 +47,69 @@ const snapshotParamSchema = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2
 
 const adminEnvSchema = z.object({ ADMIN_TOKEN: z.string().min(16).optional() });
 const adminIngestBodySchema = z.object({ since: z.string().regex(DATE_PATTERN, "Use YYYY-MM-DD").optional() });
+
+interface MeterDenied {
+	status: 401 | 429;
+	rpcCode: number;
+	message: string;
+}
+
+const meterEnvSchema = z.object({
+	STRIPE_SECRET_KEY: z.string().min(1).optional(),
+	STRIPE_METER_EVENT_NAME: z.string().min(1).optional(),
+});
+
+/**
+ * Bearer auth + metering for routes the metered() middleware can't wrap
+ * (the MCP endpoint decides per JSON-RPC method, not per route). Mirrors
+ * core's metered(): 401 unknown key, 429 over quota, records usage, and
+ * fire-and-forget mirrors to Stripe Billing Meters. Returns null when allowed.
+ */
+async function meterBearerRequest(
+	c: { req: { header: (name: string) => string | undefined }; env: Env; executionCtx: ExecutionContext },
+	route: string,
+): Promise<MeterDenied | null> {
+	const rawKey = c.req.header("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+	if (rawKey === undefined) {
+		return {
+			status: 401,
+			rpcCode: -32001,
+			message: "Provide an API key: Authorization: Bearer <key>. Get one at https://tariff.watch/#plans",
+		};
+	}
+	const record = await findApiKey(c.env.DB, rawKey);
+	if (record === null || record.status !== "active") {
+		return { status: 401, rpcCode: -32001, message: "Unknown or revoked API key." };
+	}
+	const quota = await checkQuota(c.env.DB, record.id, record.monthly_quota);
+	if (!quota.allowed) {
+		return {
+			status: 429,
+			rpcCode: -32002,
+			message: `Monthly quota of ${record.monthly_quota} requests exhausted.`,
+		};
+	}
+	await recordUsage(c.env.DB, record.id, route);
+	const meterEnv = meterEnvSchema.parse(c.env);
+	if (
+		record.plan === "pro" &&
+		record.stripe_customer_id !== null &&
+		meterEnv.STRIPE_SECRET_KEY !== undefined &&
+		meterEnv.STRIPE_METER_EVENT_NAME !== undefined
+	) {
+		c.executionCtx.waitUntil(
+			reportMeterEvent({
+				secretKey: meterEnv.STRIPE_SECRET_KEY,
+				eventName: meterEnv.STRIPE_METER_EVENT_NAME,
+				stripeCustomerId: record.stripe_customer_id,
+				value: 1,
+			}).catch((err: unknown) => {
+				console.error(JSON.stringify({ event: "meter_report_failed", message: String(err) }));
+			}),
+		);
+	}
+	return null;
+}
 
 /** Constant-time string comparison via hashed digests (lengths may differ). */
 async function timingSafeEqualStrings(a: string, b: string): Promise<boolean> {
@@ -145,23 +212,22 @@ const app = new Hono<AppEnv>()
 > Trade Administration, International Trade Commission, Bureau of Industry and
 > Security, Foreign-Trade Zones Board, and presidential tariff documents.
 
-## Free Markdown snapshots (no key required)
+## Free surfaces (no key)
 
 - [Latest snapshot](/snapshot/latest.md): the last 7 days of trade actions, token-efficient Markdown, regenerated daily.
-- /snapshot/YYYY-MM-DD.md: immutable dated snapshots for point-in-time grounding.
-- [RSS feed](/feed.xml): source-linked changes with program, status, and date metadata.
+- [RSS feed](/feed.xml): the most recent source-linked changes.
 - [Calendar feed](/calendar.ics): effective dates, comment deadlines, and hearings.
 
-## JSON API
+## Keyed surfaces (Authorization: Bearer <key>)
 
-- Get a key: add a card at /#plans (Stripe Checkout, $0 due today; the first 30 requests each month are free, then US$2 per 1,000, billed monthly for actual usage). The key is shown once.
-- GET /v1/changes?since=YYYY-MM-DD&limit=50 with "Authorization: Bearer <key>" returns structured documents: number, title, type, abstract, publication date, agencies, program, legal status, effective dates, confidence, and primary-source URL.
-- Delete your key and its data: POST /account/delete with {"email": "..."}.
+Get a key: add a card at /#plans (Stripe Checkout, $0 due today; the first 30
+requests each month are free, then US$2 per 1,000, billed monthly for actual
+usage). The key is shown once and never emailed.
 
-## MCP
-
-- POST /mcp speaks a minimal JSON-RPC MCP surface with tools/list and tools/call.
-- Tools: tariffs_list_changes, tariffs_effective_dates, tariffs_get_source.
+- GET /v1/changes?since=YYYY-MM-DD&limit=50 returns structured documents: number, title, type, abstract, publication date, agencies, program, legal status, effective dates, confidence, and primary-source URL.
+- GET /snapshot/YYYY-MM-DD.md: the immutable dated archive for point-in-time grounding ("what was known on this date").
+- POST /mcp: tools/call meters per call; initialize and tools/list are open. Tools: tariffs_list_changes, tariffs_effective_dates, tariffs_get_source.
+- Delete your key and its data anytime: POST /account/delete with {"email": "..."} or visit /account/delete.
 
 Every fact links to its primary federalregister.gov document.
 `);
@@ -170,7 +236,7 @@ Every fact links to its primary federalregister.gov document.
 	// Data changes at most daily (14:00 UTC cron); feed readers and calendar
 	// clients poll on their own schedules, so let the edge absorb them.
 	.get("/feed.xml", async (c) => {
-		const actions = await listTradeActions(c.env.DB, { since: "1970-01-01", limit: 50 });
+		const actions = await listTradeActions(c.env.DB, { since: "1970-01-01", limit: 20 });
 		c.header("content-type", "application/rss+xml; charset=utf-8");
 		c.header("cache-control", "public, max-age=3600");
 		return c.body(renderRssFeed(actions, c.env.APP_BASE_URL));
@@ -190,6 +256,19 @@ Every fact links to its primary federalregister.gov document.
 			payload = await c.req.json();
 		} catch {
 			return c.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Body must be JSON." } });
+		}
+		// Discovery (initialize/tools/list/ping) is open — the Context7
+		// distribution pattern. Tool calls authenticate with the API key and
+		// meter exactly like /v1 requests (the market gates MCP as a premium).
+		const shape = z.object({ id: z.union([z.string(), z.number()]).nullish(), method: z.string() }).safeParse(payload);
+		if (shape.success && shape.data.method === "tools/call") {
+			const denied = await meterBearerRequest(c, "mcp");
+			if (denied !== null) {
+				return c.json(
+					{ jsonrpc: "2.0", id: shape.data.id ?? null, error: { code: denied.rpcCode, message: denied.message } },
+					denied.status,
+				);
+			}
 		}
 		const body = await handleMcpJsonRpc(c.env.DB, payload);
 		if (body === null) {
@@ -216,7 +295,9 @@ Every fact links to its primary federalregister.gov document.
 		return c.body(snapshot.markdown);
 	})
 
-	.get("/snapshot/:date", zValidator("param", snapshotParamSchema), async (c) => {
+	// The dated archive is the point-in-time evidence product; it meters like
+	// the API. The latest snapshot above stays free as the grounding surface.
+	.get("/snapshot/:date", zValidator("param", snapshotParamSchema), metered<AppEnv>("snapshot"), async (c) => {
 		const date = c.req.valid("param").date.replace(/\.md$/, "");
 		const row = await c.env.DB.prepare("SELECT markdown FROM snapshots WHERE snapshot_date = ?").bind(date).first();
 		if (row === null) {
@@ -226,6 +307,9 @@ Every fact links to its primary federalregister.gov document.
 		c.header("x-snapshot-date", date);
 		return c.body(z.object({ markdown: z.string() }).parse(row).markdown);
 	})
+
+	// The deletion page lives off the main flow; the footer links here.
+	.get("/account/delete", (c) => c.html(deletePage()))
 
 	// Self-serve deletion: enter the signup email and the key(s), usage
 	// records, and address are removed; any Stripe subscription is cancelled.

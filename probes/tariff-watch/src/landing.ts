@@ -66,6 +66,7 @@ pre { background: var(--surface); border: 1px solid var(--border); border-radius
 .badge.doctype { color: #9db3c8; border-color: rgba(157, 179, 200, 0.35); }
 .t-program { color: #9fc0ae; }
 .t-agency { color: var(--muted); }
+h3 { font-size: 0.95rem; margin: 1.6rem 0 0.45rem; }
 .deadline { display: flex; gap: 1rem; align-items: baseline; padding: 0.55rem 0; border-top: 1px solid var(--border); font-size: 0.92rem; }
 .deadline:last-of-type { border-bottom: 1px solid var(--border); }
 .deadline .datum { color: var(--accent); flex: none; }
@@ -124,7 +125,7 @@ ${body}
 </main>
 <footer>
 <p>Source: <a href="https://www.federalregister.gov/">Federal Register</a> (US government work, public domain). tariff.watch publishes its own factual summaries and links every primary document. No third-party text is reproduced.</p>
-<p class="imprint">a netm8 feed · facts only, primary sources, immutable snapshots</p>
+<p class="imprint">a netm8 feed · facts only, primary sources, immutable snapshots · <a href="/account/delete">delete your key &amp; data</a></p>
 </footer>
 </body>
 </html>`;
@@ -256,39 +257,50 @@ ${deadlineList}
 ${docList}
 
 <h2 id="agents">Built for AI agents</h2>
-<p>Dated snapshots never change once their day has passed, so an agent can cite what was known on a date.${snapshotNote} The MCP endpoint (<code>POST /mcp</code>) exposes <code>tariffs_list_changes</code>, <code>tariffs_effective_dates</code>, and <code>tariffs_get_source</code>.</p>
-<pre># Free Markdown for agents
-curl ${safeBase}/snapshot/latest.md
-curl ${safeBase}/feed.xml
-curl ${safeBase}/calendar.ics
+<p>Daily updates keep your agent current on US trade policy as it changes. Ground a model free with the latest snapshot, or give it your key for structured queries, MCP tools, and the dated archive.</p>
 
-# Structured JSON — get a key under Pricing (first ${freeQuota} requests/month free)
-curl -H "Authorization: Bearer &lt;your-key&gt;" "${safeBase}/v1/changes?since=2026-06-01"</pre>
+<h3>Ground a model — no key</h3>
+<pre>curl ${safeBase}/snapshot/latest.md   # last 7 days, regenerated daily</pre>
+<p class="meta">Or click "Copy as markdown" at the top of this page and paste straight into your agent's context.${snapshotNote}</p>
+
+<h3>Use your key with the API</h3>
+<p class="meta">Treat the key like a password: keep it in an environment variable, never in prompts or repos.</p>
+<pre>export TARIFF_WATCH_KEY="fk_..."
+curl -H "Authorization: Bearer $TARIFF_WATCH_KEY" "${safeBase}/v1/changes?since=2026-06-01"
+curl -H "Authorization: Bearer $TARIFF_WATCH_KEY" ${safeBase}/snapshot/2026-06-09.md</pre>
+
+<h3>Connect the MCP server</h3>
+<p class="meta">Tool calls authenticate with the same key — your email is never needed in config; it is only for receipts and deletion. Claude Code:</p>
+<pre>claude mcp add --transport http tariff-watch ${safeBase}/mcp \\
+  --header "Authorization: Bearer $TARIFF_WATCH_KEY"</pre>
+<p class="meta">Any MCP client, by JSON config:</p>
+<pre>{
+  "mcpServers": {
+    "tariff-watch": {
+      "type": "http",
+      "url": "${safeBase}/mcp",
+      "headers": { "Authorization": "Bearer fk_..." }
+    }
+  }
+}</pre>
+<p class="meta">Tools: <code>tariffs_list_changes</code>, <code>tariffs_effective_dates</code>, <code>tariffs_get_source</code>. Listing tools is free; each tool call meters like an API request.</p>
 
 <h2 id="plans">Pricing</h2>
 <section class="plan pro">
 <h3>Pay as you go</h3>
-<p class="price">US$2 <small>/ 1,000 requests · first ${freeQuota} each month free</small></p>
+<p class="price">US$2 <small>/ 1,000 requests</small></p>
 <ul>
-<li>$0 due today; Stripe bills actual usage monthly, no hard caps, cancel anytime</li>
-<li>After checkout you return here to reveal your key (shown once), and a receipt lands in your inbox</li>
-<li>The changelog, snapshots, RSS, calendar, and MCP stay free with no key at all</li>
+<li>First ${freeQuota} requests each month are free; $0 to start</li>
+<li>Stripe bills last month's actual usage; no caps, cancel anytime</li>
+<li>One key unlocks the API, the MCP tools, and the dated archive</li>
 </ul>
 <form id="pro">
 <input id="pro-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for API key">
-<button type="submit">Add a card</button>
+<button type="submit">Get your key</button>
 <p class="error" id="pro-error" role="alert" hidden></p>
 </form>
+<p class="meta">Key shown once after checkout, never emailed. Receipt and deletion link land in your inbox.</p>
 </section>
-
-<h2 id="delete-data">Delete your key</h2>
-<p>Enter the email you signed up with. Your key, its usage records, and your address are deleted immediately, and your Stripe subscription is cancelled. This works any time, no questions asked.</p>
-<form id="delete" class="inline-form">
-<input id="delete-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email to delete">
-<button type="submit" class="danger">Delete key &amp; data</button>
-<p class="error" id="delete-error" role="alert" hidden></p>
-<p class="confirm" id="delete-result" role="status" hidden></p>
-</form>
 
 <h2 id="faq">Questions</h2>
 <div class="faq">
@@ -330,20 +342,7 @@ function wireForm(formId, errorId, onSubmit) {
     }
   });
 }
-wireForm("delete", "delete-error", async (form, button) => {
-  const res = await fetch("/account/delete", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: form.email.value }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message ?? "Deletion failed. Please try again.");
-  const confirmEl = document.getElementById("delete-result");
-  confirmEl.textContent = data.message;
-  confirmEl.hidden = false;
-  button.textContent = "Deleted";
-});
-const copyBtn = document.getElementById("copy-md");
+<h2 id="faq">Questions</h2>const copyBtn = document.getElementById("copy-md");
 copyBtn.addEventListener("click", async () => {
   const label = copyBtn.querySelector("span");
   try {
@@ -365,6 +364,51 @@ wireForm("pro", "pro-error", async (form) => {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message ?? "Checkout failed. Please try again.");
   window.location.href = data.url;
+});
+</script>`,
+	);
+}
+
+/** Standalone, discreetly linked deletion page (footer + receipt emails). */
+export function deletePage(): string {
+	return page(
+		"Delete your key — tariff.watch",
+		`<h1>Delete your key</h1>
+<p class="lede">Enter the email you signed up with. Your key, its usage records, and your address are deleted immediately, and your Stripe subscription is cancelled. This works any time, no questions asked.</p>
+<form id="delete" class="inline-form">
+<input id="delete-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email to delete">
+<button type="submit" class="danger">Delete key &amp; data</button>
+<p class="error" id="delete-error" role="alert" hidden></p>
+<p class="confirm" id="delete-result" role="status" hidden></p>
+</form>
+<p class="meta">Lost your key? Delete it here, then create a fresh one from the <a href="/#plans">pricing section</a>.</p>
+<script>
+document.getElementById("delete").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const errorEl = document.getElementById("delete-error");
+  errorEl.hidden = true;
+  const button = form.querySelector("button");
+  button.disabled = true;
+  button.textContent = "Working…";
+  try {
+    const res = await fetch("/account/delete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: form.email.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message ?? "Deletion failed. Please try again.");
+    const confirmEl = document.getElementById("delete-result");
+    confirmEl.textContent = data.message;
+    confirmEl.hidden = false;
+    button.textContent = "Deleted";
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.hidden = false;
+    button.disabled = false;
+    button.textContent = "Delete key & data";
+  }
 });
 </script>`,
 	);
