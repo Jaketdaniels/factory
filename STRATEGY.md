@@ -135,15 +135,26 @@ It should answer:
 
 ### Product Ladder
 
-Free:
+The free/paid boundary follows the market's revealed line — "today is free;
+history and machine access are metered" [E33, E34, E38, E40; full analysis in
+metered-pricing-intel.md].
 
-- Daily public snapshot pages by program, agency, source, country, and effective
-  date.
+Free (the funnel: SEO, GEO citations, feed readers):
+
+- Landing changelog and the latest daily snapshot (7-day window).
 - Primary-source links and original summaries.
-- RSS feed for recent changes.
-- Effective-date calendar and `.ics` feed (shipped free: it is the launch
-  artifact and a zero-support retention hook).
-- MCP tool that exposes recent changes and source metadata.
+- RSS feed of recent headlines; effective-date calendar and `.ics` feed.
+- MCP discovery (`initialize`, `tools/list`) — the Context7 distribution
+  pattern [E43].
+
+Metered behind the API key:
+
+- `GET /v1/changes` (structured evidence fields).
+- MCP `tools/call` — the market gates MCP as a premium: Signal Congress at
+  $99/mo, TariffsAPI at $199/mo [E38, E33].
+- Dated snapshot archive (point-in-time records) — historical/`as_of` access
+  is a paid feature across the vertical [E33, E34]; the archive compounds
+  daily and cannot be back-filled by a new entrant.
 
 Pay as you go (adopted June 2026, replacing the flat Pro tier):
 
@@ -153,12 +164,36 @@ Pay as you go (adopted June 2026, replacing the flat Pro tier):
   free allowance is tier one at $0, so Stripe computes every invoice and no
   quota repricing ever recurs.
 - Paying users never hit a hard 429; Stripe bills actual usage monthly.
-  Reference points: 10k req/mo ≈ US$20, 100k ≈ US$200 (the TariffsAPI anchor).
 - No card-less keys: every key is provisioned through Stripe Checkout, so
   every key is billable, receipted by email, and self-serve deletable
   (key, usage records, and address) from the site or POST /account/delete.
-- Watchlists, email and webhook alerts, legal-status tracking, and CSV export
-  ship into this same plan as they land — features raise usage, not price.
+
+Pricing decision rules (evidence: metered-pricing-intel.md, E33–E43):
+
+- Hold US$2.00/1k + 30 free. The agent-call band is $2–$15/1k (Exa $7,
+  Tavily $8, Context7 overage $10, TariffsAPI effective $1.99–4.90); we hold
+  the credible floor because our marginal cost is near zero [E33, E41, E43].
+  We are the only $0-base usage-priced entrant in the trade vertical [E33–E37].
+- Add a flat "Standing" tier at US$29/mo only when watchlists/alerts ship:
+  ~15,000 included calls + alerting, PAYG overage beyond. $29 is the
+  empirically dominant entry price in this vertical (TariffsAPI, TariffDesk,
+  Legiseye) and creates the recurring floor PAYG lacks [E33, E35, E36].
+- Never compete on data exclusivity — the facts are public domain and the
+  free-data/paid-product model is proven (MakeGov sells enrichments + rate
+  limits over free data; TradeFacts sells SLA/diffs/webhooks against the free
+  USITC API) [E40, E34]. Differentiation budget: evidence fields, archive
+  depth, freshness, distribution.
+- Asset protection: per-IP rate limits on free surfaces (MakeGov/Context7
+  pattern [E40, E43]); a published terms/licensing page — free surfaces for
+  grounding with attribution, redistribution licensed (the OpenSanctions
+  move [E11, E23]).
+- Freshness escalation: move ingest to 4×/day and surface "last checked"
+  timestamps — Legiseye claims 2-hour cycles, TradeFacts ships overnight
+  webhooks, and TariffsAPI is publicly apologizing for stale data right now
+  [E36, E34, E33].
+- Watch items: TariffsAPI data-quality recovery; Legiseye shipping an API;
+  any trade player adopting $0-base PAYG (respond with archive depth and
+  freshness, never price cuts).
 
 Team or reseller later:
 
