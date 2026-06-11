@@ -161,6 +161,8 @@ export interface LandingInput {
 	freeQuota: number;
 	baseUrl: string;
 	upcoming: UpcomingDeadline[];
+	/** SQLite datetime ("YYYY-MM-DD HH:MM:SS", UTC) of the latest ingest run. */
+	lastCheckedAt: string | null;
 }
 
 const PROGRAM_LABELS: Record<string, string> = {
@@ -189,7 +191,7 @@ function statusBadge(status: string): string {
 }
 
 export function landingPage(input: LandingInput): string {
-	const { docs, latestSnapshotDate, freeQuota, baseUrl, upcoming } = input;
+	const { docs, latestSnapshotDate, freeQuota, baseUrl, upcoming, lastCheckedAt } = input;
 
 	const deadlineList =
 		upcoming.length === 0
@@ -253,6 +255,12 @@ ${dates.length > 0 ? `<span>${dates.join(" · ")}</span>` : ""}
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="16" r="4"/><path d="m11 13 9-9"/><path d="m16 5 3 3"/></svg>
 <span>Get an API key</span>
 </a>
+${
+	lastCheckedAt === null
+		? ""
+		: `<span class="meta-sep" aria-hidden="true"></span>
+<span class="meta-link" style="cursor: default">Last checked <span class="datum">${escapeHtml(lastCheckedAt.slice(0, 16))} UTC</span></span>`
+}
 </div>
 
 ${deadlineList}
@@ -287,8 +295,8 @@ curl -H "Authorization: Bearer $TARIFF_WATCH_KEY" ${safeBase}/snapshot/2026-06-0
 
 <h2 id="plans">Pricing</h2>
 <section class="plan">
-<p class="price"><span class="datum">${freeQuota}</span> free API calls every month</p>
-<p class="plan-detail">Then US$0.10 per API call. Stripe bills last month's usage; no caps, cancel anytime. One key covers the API, the MCP tools, and the dated archive.</p>
+<p class="price">Your first <span class="datum">${freeQuota}</span> API calls are free</p>
+<p class="plan-detail">A month of daily updates on us. After that, US$0.10 per API call — Stripe bills last month's usage; no caps, cancel anytime. One key covers the API, the MCP tools, and the dated archive.</p>
 <form id="pro">
 <input id="pro-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for API key">
 <button type="submit">Get your key</button>

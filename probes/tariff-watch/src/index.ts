@@ -9,6 +9,7 @@ import {
 	findApiKey,
 	getStripeSecrets,
 	getWebhookSecret,
+	lifetimeUsage,
 	type MeteredVariables,
 	metered,
 	onApiError,
@@ -57,6 +58,7 @@ interface MeterDenied {
 const meterEnvSchema = z.object({
 	STRIPE_SECRET_KEY: z.string().min(1).optional(),
 	STRIPE_METER_EVENT_NAME: z.string().min(1).optional(),
+	FREE_CALL_ALLOWANCE: z.number().int().min(0).optional(),
 });
 
 /**
@@ -95,7 +97,10 @@ async function meterBearerRequest(
 		record.plan === "pro" &&
 		record.stripe_customer_id !== null &&
 		meterEnv.STRIPE_SECRET_KEY !== undefined &&
-		meterEnv.STRIPE_METER_EVENT_NAME !== undefined
+		meterEnv.STRIPE_METER_EVENT_NAME !== undefined &&
+		// Lifetime allowance mirror of core metered(): the first N calls are
+		// never reported to the billing meter.
+		(await lifetimeUsage(c.env.DB, record.id)) > (meterEnv.FREE_CALL_ALLOWANCE ?? 0)
 	) {
 		c.executionCtx.waitUntil(
 			reportMeterEvent({
@@ -155,11 +160,14 @@ const app = new Hono<AppEnv>()
 	.get("/", async (c) => {
 		c.executionCtx.waitUntil(track(c.env.DB, "pageview", { path: "/" }));
 		const today = isoDate(new Date());
-		const [docsResult, snapshotRow, upcomingResult] = await Promise.all([
+		const [docsResult, snapshotRow, lastIngestRow, upcomingResult] = await Promise.all([
 			c.env.DB.prepare(
 				`SELECT ${TRADE_ACTION_COLUMNS} FROM tariff_documents ORDER BY publication_date DESC, document_number DESC LIMIT 10`,
 			).all(),
 			c.env.DB.prepare("SELECT snapshot_date FROM snapshots ORDER BY snapshot_date DESC LIMIT 1").first(),
+			c.env.DB.prepare(
+				"SELECT created_at FROM analytics_events WHERE name = 'ingest_run' ORDER BY created_at DESC LIMIT 1",
+			).first(),
 			c.env.DB.prepare(
 				`SELECT date, kind, title, url FROM (
 					SELECT effective_on AS date, 'effective' AS kind, title, url FROM tariff_documents WHERE effective_on >= ?1
@@ -186,6 +194,7 @@ const app = new Hono<AppEnv>()
 				hearingOn: d.hearing_on,
 			}));
 		const latestSnapshot = z.object({ snapshot_date: z.string() }).nullable().parse(snapshotRow);
+		const lastChecked = z.object({ created_at: z.string() }).nullable().parse(lastIngestRow);
 		const upcoming = z
 			.array(z.object({ date: z.string(), kind: z.string(), title: z.string(), url: z.string() }))
 			.parse(upcomingResult.results);
@@ -193,9 +202,10 @@ const app = new Hono<AppEnv>()
 			landingPage({
 				docs,
 				latestSnapshotDate: latestSnapshot?.snapshot_date ?? null,
-				freeQuota: c.env.FREE_MONTHLY_QUOTA,
+				freeQuota: c.env.FREE_CALL_ALLOWANCE,
 				baseUrl: c.env.APP_BASE_URL,
 				upcoming,
+				lastCheckedAt: lastChecked?.created_at ?? null,
 			}),
 		);
 	})
@@ -220,9 +230,10 @@ const app = new Hono<AppEnv>()
 
 ## Keyed surfaces (Authorization: Bearer <key>)
 
-Get a key: add a card at /#plans (Stripe Checkout, $0 due today; the first 30
-API calls each month are free, then US$0.10 per API call after that, billed
-monthly for actual usage; cancel anytime). The key is shown once and never emailed.
+Get a key: add a card at /#plans (Stripe Checkout, $0 due today). Your first
+30 API calls are free — a month of daily updates. After that, every call is
+US$0.10, billed monthly for actual usage; cancel anytime. The key is shown
+once and never emailed.
 
 - GET /v1/changes?since=YYYY-MM-DD&limit=50 returns structured documents: number, title, type, abstract, publication date, agencies, program, legal status, effective dates, confidence, and primary-source URL.
 - GET /snapshot/YYYY-MM-DD.md: the immutable dated archive for point-in-time grounding ("what was known on this date").
@@ -390,7 +401,7 @@ Every fact links to its primary federalregister.gov document.
 			cancelUrl: `${c.env.APP_BASE_URL}/`,
 			customerEmail: email,
 			meteredPrice: true,
-			submitNote: `The first ${c.env.FREE_MONTHLY_QUOTA} API calls each month are free. US$0.10 per API call after that, billed monthly for actual usage. $0 is due today. Cancel anytime.`,
+			submitNote: `Your first ${c.env.FREE_CALL_ALLOWANCE} API calls are free — about a month of daily updates. US$0.10 per API call after that, billed monthly for actual usage. $0 is due today. Cancel anytime.`,
 		});
 		c.executionCtx.waitUntil(track(c.env.DB, "checkout_started"));
 		return c.json({ url: session.url });

@@ -35,7 +35,7 @@ For your security it is never sent by email — if you lost it, delete it below
 and create a new one.
 
 What you signed up for
-- Pay as you go: the first ${input.freeQuota} API calls each month are free.
+- Pay as you go: your first ${input.freeQuota} API calls are free — a month\n  of daily updates on us.
 - US$0.10 per API call after that, billed monthly by Stripe for actual usage.
   $0 was charged today. Stripe emails your invoices. Cancel anytime.
 
@@ -49,7 +49,7 @@ tariff.watch — a netm8 feed. Facts only, primary sources, immutable snapshots.
 Questions: reply to this email.`;
 	const html = `<p>Your tariff.watch API key was created and shown to you once in the browser. For your security it is never sent by email — if you lost it, delete it below and create a new one.</p>
 <p><strong>What you signed up for</strong><br>
-Pay as you go: the first ${input.freeQuota} API calls each month are free, then US$0.10 per API call after that, billed monthly by Stripe for actual usage. $0 was charged today. Stripe emails your invoices. Cancel anytime.</p>
+Pay as you go: your first ${input.freeQuota} API calls are free — a month of daily updates on us. After that, US$0.10 per API call, billed monthly by Stripe for actual usage. $0 was charged today. Stripe emails your invoices. Cancel anytime.</p>
 <p><strong>Delete your key and data — anytime</strong><br>
 <a href="${input.baseUrl}/account/delete">${input.baseUrl}/account/delete</a><br>
 Enter this email address there and your key, usage records, and address are deleted immediately. Cancelling your subscription from any Stripe invoice email also deactivates the key.</p>
@@ -69,7 +69,7 @@ export async function sendKeyCreatedEmail(env: Env, to: string): Promise<boolean
 	if (sender === undefined) {
 		return false;
 	}
-	const content = keyCreatedEmail({ to, baseUrl: env.APP_BASE_URL, freeQuota: env.FREE_MONTHLY_QUOTA });
+	const content = keyCreatedEmail({ to, baseUrl: env.APP_BASE_URL, freeQuota: env.FREE_CALL_ALLOWANCE });
 	try {
 		await sender.send({ to, from: FROM, replyTo: REPLY_TO, ...content });
 		return true;

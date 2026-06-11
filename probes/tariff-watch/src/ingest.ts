@@ -99,11 +99,13 @@ function truncate(text: string, max = 280): string {
 	return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
-function renderSnapshotMarkdown(snapshotDate: string, sinceDate: string, docs: StoredDoc[]): string {
+function renderSnapshotMarkdown(snapshotDate: string, sinceDate: string, docs: StoredDoc[], generatedAt: Date): string {
 	const lines: string[] = [
 		`# US Tariff & Trade-Action Changelog — ${snapshotDate}`,
 		"",
 		`Facts-only digest of trade-relevant US federal publications: everything from USTR, CBP, the International Trade Administration, the International Trade Commission, the Bureau of Industry and Security, and the Foreign-Trade Zones Board, plus presidential tariff documents. Window: ${sinceDate} to ${snapshotDate}. Entries: ${docs.length}.`,
+		"",
+		`Last checked: ${generatedAt.toISOString().slice(0, 16).replace("T", " ")} UTC (sources are polled four times daily).`,
 		"",
 		"Source: Federal Register (US government work, public domain). Every entry links to the primary document. This snapshot is immutable once its date has passed; fetch /snapshot/latest.md for the newest.",
 		"",
@@ -164,7 +166,7 @@ export async function runIngest(env: Env, now: Date, options: IngestOptions = {}
 		.bind(windowStart)
 		.all();
 	const windowDocs = z.array(storedTradeActionRowSchema).parse(results);
-	const markdown = renderSnapshotMarkdown(snapshotDate, windowStart, windowDocs);
+	const markdown = renderSnapshotMarkdown(snapshotDate, windowStart, windowDocs, now);
 	await env.DB.prepare(
 		"INSERT INTO snapshots (snapshot_date, markdown, entry_count) VALUES (?, ?, ?) ON CONFLICT(snapshot_date) DO UPDATE SET markdown = excluded.markdown, entry_count = excluded.entry_count",
 	)

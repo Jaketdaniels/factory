@@ -14,7 +14,7 @@ export {
 	revokeKeysForSubscription,
 	sha256Hex,
 } from "./keys";
-export { checkQuota, monthlyUsage, type QuotaCheck, recordUsage } from "./meter";
+export { checkQuota, lifetimeUsage, monthlyUsage, type QuotaCheck, recordUsage } from "./meter";
 export { getStripeSecrets, getWebhookSecret, type StripeSecrets } from "./secrets";
 export {
 	type CheckoutSession,

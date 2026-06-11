@@ -112,6 +112,7 @@ describe("runIngest", () => {
 			.first<{ markdown: string; entry_count: number }>();
 		expect(snapshot?.entry_count).toBe(4);
 		expect(snapshot?.markdown).toContain("Proclamation: Adjusting Imports of Steel");
+		expect(snapshot?.markdown).toContain("Last checked: 2026-06-09 14:00 UTC");
 		expect(snapshot?.markdown).toContain("Agency Doc Page Two");
 		expect(snapshot?.markdown).toContain("public domain");
 	});

@@ -43,7 +43,7 @@ curl https://tariff.watch/calendar.ics
 curl https://tariff.watch/snapshot/2026-06-09.md
 
 # Get an API key: add a card at https://tariff.watch/#plans
-# ($0 due today; first 30 API calls/month free, then US$0.10 per API call)
+# ($0 due today; your first 30 API calls are free, then US$0.10 per call)
 
 # Structured changes since a date
 curl -H "Authorization: Bearer <your-key>" \
@@ -60,8 +60,8 @@ where each result has `document_number`, `title`, `type`, `abstract`,
 `comments_close_on`, `hearing_on`, `confidence`, and the primary-source `url`.
 Errors are structured JSON (`{ "error": { "code": "...", "message": "..." } }`);
 quota exhaustion on free keys is a `429 quota_exceeded`. Pay as you go is
-available from the landing page: first 30 API calls/month free, then US$0.10
-per API call, billed monthly for actual usage. Cancel anytime.
+available from the landing page: your first 30 API calls are free (a month of
+daily updates), then US$0.10 per call, billed monthly. Cancel anytime.
 
 Full product documentation: [probes/tariff-watch](probes/tariff-watch/README.md).
 

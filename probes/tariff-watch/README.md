@@ -56,9 +56,9 @@ curl -X POST -H "Content-Type: application/json" \
 Response fields: `document_number`, `title`, `type`, `abstract`,
 `publication_date`, `agencies[]`, `program`, `legal_status`, `effective_on`,
 `comments_close_on`, `hearing_on`, `confidence`, and the primary-source `url`.
-Pay as you go via `POST /billing/checkout`: $0/month base, first 30 API calls
-each month free, then US$0.10 per API call — billed monthly for actual usage
-(Stripe Billing Meters; no hard caps, cancel anytime).
+Pay as you go via `POST /billing/checkout`: $0/month base; your first 30 API
+calls are free (a month of daily updates), then US$0.10 per call — billed
+monthly for actual usage (Stripe Billing Meters; no hard caps, cancel anytime).
 
 ### MCP
 
@@ -105,7 +105,7 @@ npm run deploy
 ### Configuration
 
 Vars (public, in [wrangler.jsonc](wrangler.jsonc)): `APP_BASE_URL`,
-`STRIPE_PRICE_ID`, `PRO_MONTHLY_QUOTA`, `FREE_MONTHLY_QUOTA`.
+`STRIPE_PRICE_ID`, `PRO_MONTHLY_QUOTA`, `FREE_CALL_ALLOWANCE`.
 
 Secrets (via `.dev.vars` locally, `wrangler secret put` in production):
 

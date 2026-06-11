@@ -21,6 +21,20 @@ export async function monthlyUsage(db: D1Database, keyId: string): Promise<numbe
 	return totalSchema.parse(row).total;
 }
 
+/**
+ * Total usage for a key across its whole life. Supports lifetime free
+ * allowances ("your first N calls are free") that Stripe's per-period
+ * tiers cannot express — the app simply doesn't report the first N calls
+ * to the billing meter.
+ */
+export async function lifetimeUsage(db: D1Database, keyId: string): Promise<number> {
+	const row = await db
+		.prepare("SELECT COALESCE(SUM(qty), 0) AS total FROM usage_events WHERE key_id = ?")
+		.bind(keyId)
+		.first();
+	return totalSchema.parse(row).total;
+}
+
 export interface QuotaCheck {
 	allowed: boolean;
 	used: number;

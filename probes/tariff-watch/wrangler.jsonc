@@ -22,20 +22,27 @@
 		// STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN) go in `.dev.vars` locally and
 		// `wrangler secret put <NAME>` in production — never here.
 		"APP_BASE_URL": "https://tariff.watch",
-		// Pay as you go: graduated metered price (first 30 calls/mo free,
-		// then US$0.10 per API call) on the tariff_watch_requests meter.
-		"STRIPE_PRICE_ID": "price_1Th3caRtNOtWEuKv0aut9dUz",
+		// Pay as you go: flat US$0.10/call metered price on the
+		// tariff_watch_requests meter; the lifetime free allowance below is
+		// enforced app-side, not in the price.
+		"STRIPE_PRICE_ID": "price_1Th6raRtNOtWEuKvU7fGbHym",
 		"STRIPE_METER_EVENT_NAME": "tariff_watch_requests",
 		// Pay-as-you-go keys are billed by the meter, never quota-blocked;
 		// this quota is an abuse ceiling only.
 		"PRO_MONTHLY_QUOTA": 1000000,
-		"FREE_MONTHLY_QUOTA": 30
+		// Lifetime free allowance per key ("your first month of daily updates
+		// is free") — enforced app-side by not reporting the first N calls to
+		// the meter; Stripe period tiers reset monthly and can't express this.
+		"FREE_CALL_ALLOWANCE": 30
 	},
 	// Transactional email (key receipts) via Cloudflare Email Service; the
 	// sender domain netm8.com is onboarded for Email Sending on this account.
 	"send_email": [{ "name": "EMAIL" }],
-	// Daily ingest at 14:00 UTC — after the Federal Register's ~6am ET publication.
-	"triggers": { "crons": ["0 14 * * *"] },
+	// Ingest four times daily (02/08/14/20 UTC) — the Federal Register
+	// publishes ~6am ET (≈10-11 UTC); off-the-hour minute avoids the herd.
+	// Multiple/list cron expressions per
+	// https://developers.cloudflare.com/workers/configuration/cron-triggers/
+	"triggers": { "crons": ["7 2,8,14,20 * * *"] },
 	// Custom domain (uncomment after registering tariff.watch in this Cloudflare
 	// account, then set APP_BASE_URL to https://tariff.watch and redeploy):
 	"routes": [{ "pattern": "tariff.watch", "custom_domain": true }]

@@ -39,6 +39,51 @@ function claimRequest(sessionId: string): Request {
 	});
 }
 
+describe("lifetime free allowance", () => {
+	const server = setupServer();
+
+	beforeAll(() => {
+		server.listen({ onUnhandledRequest: "error" });
+	});
+	afterEach(() => {
+		server.resetHandlers();
+	});
+	afterAll(() => {
+		server.close();
+	});
+	beforeEach(clearTables);
+
+	it("reports meter events only after the first FREE_CALL_ALLOWANCE calls", async () => {
+		let meterEvents = 0;
+		server.use(
+			http.post("https://api.stripe.com/v1/billing/meter_events", () => {
+				meterEvents += 1;
+				return HttpResponse.json({ identifier: `me_${meterEvents}` });
+			}),
+		);
+		const { rawKey } = await createApiKey(env.DB, {
+			plan: "pro",
+			monthlyQuota: 1000000,
+			email: "meter@example.com",
+			stripeCustomerId: "cus_meter_1",
+			stripeSubscriptionId: "sub_meter_1",
+		});
+		const allowance = env.FREE_CALL_ALLOWANCE;
+		expect(allowance).toBe(30);
+		for (let i = 0; i < allowance + 2; i++) {
+			const res = await SELF.fetch(
+				new Request("https://example.com/v1/changes?limit=1", {
+					headers: { authorization: `Bearer ${rawKey}` },
+				}),
+			);
+			expect(res.status).toBe(200);
+		}
+		// waitUntil-delivered meter reports flush asynchronously.
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(meterEvents).toBe(2);
+	});
+});
+
 describe("account deletion cancels billing", () => {
 	const server = setupServer();
 
@@ -108,7 +153,7 @@ describe("checkout", () => {
 		expect(res.status).toBe(200);
 		await expect(res.json()).resolves.toEqual({ url: "https://checkout.stripe.com/c/cs_1" });
 		const params = new URLSearchParams(checkoutBody);
-		expect(params.get("custom_text[submit][message]")).toContain("The first 30 API calls each month are free.");
+		expect(params.get("custom_text[submit][message]")).toContain("Your first 30 API calls are free");
 		expect(params.get("custom_text[submit][message]")).toContain("US$0.10 per API call after that");
 		expect(params.get("custom_text[submit][message]")).toContain("Cancel anytime.");
 		expect(checkoutBody).not.toContain("US%242");

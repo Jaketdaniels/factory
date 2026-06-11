@@ -3,7 +3,7 @@ import { createMiddleware } from "hono/factory";
 import { z } from "zod";
 import { errorBody } from "./errors";
 import { type ApiKeyRecord, findApiKey } from "./keys";
-import { checkQuota, recordUsage } from "./meter";
+import { checkQuota, lifetimeUsage, recordUsage } from "./meter";
 import { reportMeterEvent } from "./stripe";
 
 export interface MeteredVariables {
@@ -20,6 +20,10 @@ export type CoreEnv = {
 const meterEnvSchema = z.object({
 	STRIPE_SECRET_KEY: z.string().min(1).optional(),
 	STRIPE_METER_EVENT_NAME: z.string().min(1).optional(),
+	/** Lifetime free calls per key: the first N calls are never reported to
+	 * the billing meter (Stripe period tiers reset monthly and cannot express
+	 * a one-time allowance). */
+	FREE_CALL_ALLOWANCE: z.number().int().min(0).optional(),
 });
 
 function extractBearer(authorization: string | undefined): string | null {
@@ -62,7 +66,10 @@ export function metered<E extends CoreEnv>(route: string, qty = 1): MiddlewareHa
 			record.plan === "pro" &&
 			record.stripe_customer_id !== null &&
 			meterEnv.STRIPE_SECRET_KEY !== undefined &&
-			meterEnv.STRIPE_METER_EVENT_NAME !== undefined
+			meterEnv.STRIPE_METER_EVENT_NAME !== undefined &&
+			// Lifetime allowance: usage was just recorded, so the count includes
+			// this call — call #N stays free while N <= allowance.
+			(await lifetimeUsage(c.env.DB, record.id)) > (meterEnv.FREE_CALL_ALLOWANCE ?? 0)
 		) {
 			c.executionCtx.waitUntil(
 				reportMeterEvent({

@@ -60,7 +60,7 @@ describe("public surfaces", () => {
 		expect(html).toContain("Comments due");
 		expect(html).toContain('id="pro"');
 		expect(html).toContain("/billing/checkout");
-		expect(html).toContain("30</span> free API calls every month");
+		expect(html).toContain('Your first <span class="datum">30</span> API calls are free');
 		expect(html).toContain("US$0.10 per API call");
 		expect(html).toContain("cancel anytime");
 		expect(html).not.toContain("US$2");
@@ -75,6 +75,15 @@ describe("public surfaces", () => {
 		expect(html).not.toContain("this-domain");
 	});
 
+	it("shows the last-checked timestamp once an ingest has run", async () => {
+		await env.DB.prepare(
+			"INSERT INTO analytics_events (id, name, props, created_at) VALUES ('evt-fresh', 'ingest_run', '{}', '2026-06-11 08:07:00')",
+		).run();
+		const html = await (await SELF.fetch("https://example.com/")).text();
+		expect(html).toContain("Last checked");
+		expect(html).toContain("2026-06-11 08:07 UTC");
+	});
+
 	it("shows the empty state before first ingest", async () => {
 		const res = await SELF.fetch("https://example.com/");
 		expect(await res.text()).toContain("No documents ingested yet");
@@ -86,8 +95,9 @@ describe("public surfaces", () => {
 		expect(res.headers.get("content-type")).toContain("text/markdown");
 		const body = await res.text();
 		expect(body).toContain("/snapshot/latest.md");
-		expect(body).toMatch(/the first 30\s+API calls each month are free/);
-		expect(body).toContain("US$0.10 per API call after that");
+		expect(body).toMatch(/first\s+30 API calls are free/);
+		expect(body).not.toContain("each month are free");
+		expect(body).toContain("US$0.10");
 		expect(body).not.toContain("US$2");
 	});
 
