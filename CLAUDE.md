@@ -6,6 +6,12 @@ criteria; keep or sell the survivors. Build is never the bottleneck —
 distribution is, so probes are only built for surfaces with native discovery
 (app stores, marketplaces, transactional SEO, agent registries).
 
+## Execution roadmap
+
+The phased plan with anti-drift rules, exit criteria, and the probe formula
+lives in [docs/development-plan.md](docs/development-plan.md). Work outside
+the current phase needs a scored justification logged there.
+
 ## Layout
 
 - `core/` — `@factory/core`: API-key auth + metering middleware, Stripe
