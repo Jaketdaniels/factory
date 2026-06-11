@@ -1,0 +1,16 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	"name": "netm8-site",
+	"main": "src/index.ts",
+	// Pinned: wrangler's account-membership lookup intermittently 500s; the
+	// id is not a secret (it appears in every dashboard URL).
+	"account_id": "99d4e92ade821bd5168cbe8935e719ab",
+	"compatibility_date": "2026-06-09",
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	// The umbrella site: static pages + the published FeedItemV1 contract.
+	// No bindings — catalogs and specs only; products carry their own Workers.
+	"routes": [{ "pattern": "netm8.com", "custom_domain": true }]
+}

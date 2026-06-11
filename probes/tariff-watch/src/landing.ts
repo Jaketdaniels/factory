@@ -129,7 +129,7 @@ ${body}
 </main>
 <footer>
 <p>Source: <a href="https://www.federalregister.gov/">Federal Register</a> (US government work, public domain). tariff.watch publishes its own factual summaries and links every primary document. No third-party text is reproduced.</p>
-<p class="imprint">a netm8 feed · facts only, primary sources, immutable snapshots · <a href="/terms">terms</a> · <a href="/account/delete">delete your key &amp; data</a></p>
+<p class="imprint">a <a href="https://netm8.com">netm8</a> feed · facts only, primary sources, immutable snapshots · <a href="/terms">terms</a> · <a href="/account/delete">delete your key &amp; data</a></p>
 </footer>
 </body>
 </html>`;
