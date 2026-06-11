@@ -202,7 +202,8 @@ const app = new Hono<AppEnv>()
 			rateLimited(c);
 			return c.json(errorBody("rate_limited", "Too many requests from this address. Try again shortly."), 429);
 		}
-		c.executionCtx.waitUntil(track(c.env.DB, "pageview", { path: "/" }));
+		const ref = c.req.query("ref");
+		c.executionCtx.waitUntil(track(c.env.DB, "pageview", ref === undefined ? { path: "/" } : { path: "/", ref }));
 		const today = isoDate(new Date());
 		const [docsResult, snapshotRow, lastIngestRow, upcomingResult] = await Promise.all([
 			c.env.DB.prepare(
