@@ -1,0 +1,55 @@
+# CI: lint -> typecheck -> test (workers pool) -> dry-run, then deploy on main.
+# Deploy pattern per https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
+# (cloudflare/wrangler-action@v3; CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID secrets).
+# The deploy job no-ops until the secrets exist — token minting is dashboard-only,
+# so CI is verification-first by default.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run dry-run
+
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HAS_CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v6
+        if: env.HAS_CF_TOKEN == 'true'
+      - uses: actions/setup-node@v4
+        if: env.HAS_CF_TOKEN == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: env.HAS_CF_TOKEN == 'true'
+      - name: Deploy tariff-watch
+        if: env.HAS_CF_TOKEN == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: probes/tariff-watch
+      - name: Deploy skipped (no CLOUDFLARE_API_TOKEN secret)
+        if: env.HAS_CF_TOKEN != 'true'
+        run: echo "Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repo secrets to enable CI deploys."
