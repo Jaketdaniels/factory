@@ -17,6 +17,10 @@
 			"migrations_dir": "migrations"
 		}
 	],
+	// Raw snapshot retention: every ingested source response is archived in R2
+	// keyed by its SHA-256 (the FeedItemV1 provenance.snapshot_hash). Create
+	// per probe: `wrangler r2 bucket create <probe-name>-raw`.
+	"r2_buckets": [{ "binding": "RAW", "bucket_name": "probe-template-raw" }],
 	"vars": {
 		// Public, non-secret configuration only. Secrets (STRIPE_SECRET_KEY,
 		// STRIPE_WEBHOOK_SECRET) go in `.dev.vars` locally and
