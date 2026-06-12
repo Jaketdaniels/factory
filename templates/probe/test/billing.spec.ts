@@ -51,20 +51,34 @@ describe("checkout", () => {
 		server.close();
 	});
 
-	it("creates a Stripe checkout session and returns its url", async () => {
+	it("creates a free-launch reservation and returns its success url", async () => {
+		let stripeCalled = false;
 		server.use(
-			http.post("https://api.stripe.com/v1/checkout/sessions", () =>
-				HttpResponse.json({ id: "cs_1", url: "https://checkout.stripe.com/c/cs_1" }),
-			),
+			http.post("https://api.stripe.com/v1/checkout/sessions", () => {
+				stripeCalled = true;
+				return HttpResponse.json({ id: "cs_1", url: "https://checkout.stripe.com/c/cs_1" });
+			}),
 		);
 
 		const res = await SELF.fetch("https://example.com/billing/checkout", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ email: "buyer@example.com" }),
+			body: JSON.stringify({ email: "buyer@example.com", plan: "fixed_monthly" }),
 		});
 		expect(res.status).toBe(200);
-		await expect(res.json()).resolves.toEqual({ url: "https://checkout.stripe.com/c/cs_1" });
+		const body = (await res.json()) as { url: string };
+		expect(body.url).toMatch(/^http:\/\/localhost:8787\/billing\/success\?session_id=free_/);
+		expect(stripeCalled).toBe(false);
+
+		const sessionId = new URL(body.url).searchParams.get("session_id") ?? "";
+		const ready = await SELF.fetch(`https://example.com/billing/success?session_id=${sessionId}`);
+		expect(await ready.text()).toContain("Reveal my API key");
+
+		const revealed = await SELF.fetch(claimRequest(sessionId));
+		expect(revealed.status).toBe(200);
+		expect(await revealed.text()).toMatch(/fk_[A-Za-z0-9_-]{32}/);
+		const key = await env.DB.prepare("SELECT COALESCE(tier, plan) AS plan FROM api_keys").first<{ plan: string }>();
+		expect(key?.plan).toBe("standing");
 	});
 
 	it("rejects invalid emails", async () => {
@@ -72,6 +86,15 @@ describe("checkout", () => {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ email: "not-an-email" }),
+		});
+		expect(res.status).toBe(400);
+	});
+
+	it("rejects unknown pricing plans", async () => {
+		const res = await SELF.fetch("https://example.com/billing/checkout", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ email: "buyer@example.com", plan: "enterprise" }),
 		});
 		expect(res.status).toBe(400);
 	});

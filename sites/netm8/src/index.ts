@@ -34,13 +34,18 @@ const app = new Hono<{ Bindings: Env }>()
 		c.header("cache-control", "public, max-age=3600");
 		return c.body(`# netm8
 
-Changelogs of government rules: structured changefeeds from primary sources,
-built for AI agents. Feed contract (FeedItemV1 JSON Schema):
+Current context APIs for specialist domains. netm8 turns source material into
+tailored, source-linked feeds for humans, software, and AI agents. Feed contract
+(FeedItemV1 JSON Schema):
 https://netm8.com/standards/feed-item-v1.schema.json
 
-Live feeds:
-- tariff.watch — US tariff/trade-action changes. Agent index: https://tariff.watch/llms.txt
-- recalls.netm8.com — FDA recall change events. Agent index: https://recalls.netm8.com/llms.txt
+Example feeds:
+- tariff.watch — US tariff/trade-action context. Agent index: https://tariff.watch/llms.txt
+- recalls.netm8.com — FDA recall context. Agent index: https://recalls.netm8.com/llms.txt
+
+The network is designed for many focused feeds across regulation, safety,
+trade, licensing, procurement, litigation, market notices, and other specialist
+domains where stale context causes mistakes.
 
 Licensing: free reading with attribution; metered machine access per feed;
 commercial redistribution licensed (hello@netm8.com). Verify against the

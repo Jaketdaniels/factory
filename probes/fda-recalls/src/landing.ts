@@ -13,7 +13,7 @@ export function escapeHtml(value: string): string {
 const FAVICON =
 	"data:image/svg+xml," +
 	encodeURIComponent(
-		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#16140f"/><path d="M16 8v9M16 21.5v.5" stroke="#d2a44c" stroke-width="3" stroke-linecap="round"/></svg>',
+		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0b756f"/><path d="M16 8v9M16 21.5v.5" stroke="#d2a44c" stroke-width="3" stroke-linecap="round"/></svg>',
 	);
 
 function page(title: string, body: string): string {
@@ -37,10 +37,10 @@ body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background
 .site { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.75rem; }
 .wordmark { font-family: var(--mono); font-weight: 600; font-size: 1.05rem; color: var(--text); text-decoration: none; }
 .wordmark span { color: var(--accent); }
-h1 { font-size: clamp(1.8rem, 5vw, 2.3rem); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 1.1rem; text-wrap: balance; }
-h2 { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 3.25rem 0 1rem; }
+h1 { font-size: 2.3rem; line-height: 1.12; letter-spacing: 0; margin: 0 0 1.1rem; text-wrap: balance; }
+h2 { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; letter-spacing: 0; text-transform: uppercase; color: var(--muted); margin: 3.25rem 0 1rem; }
 .lede { font-size: 1.05rem; max-width: 60ch; }
-a { color: var(--accent); text-underline-offset: 3px; }
+a { color: var(--accent); text-underline-offset: 3px; transition: color 0.15s; }
 code, pre, .badge, .datum { font-family: var(--mono); }
 code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.35rem; font-size: 0.85em; }
 pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; line-height: 1.55; font-size: 0.82rem; }
@@ -50,12 +50,33 @@ pre { background: var(--surface); border: 1px solid var(--border); border-radius
 .doc { padding: 0.85rem 0; border-top: 1px solid var(--border); }
 .doc:last-of-type { border-bottom: 1px solid var(--border); }
 .doc .title { color: var(--text); }
+.doc:hover .title { color: var(--accent); }
 .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: baseline; }
-input { font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.65rem; }
-button { font: inherit; font-weight: 600; background: var(--accent); color: #1b1607; border: none; border-radius: 6px; padding: 0.5rem 0.95rem; cursor: pointer; }
+input { font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.65rem; transition: border-color 0.15s; }
+input:focus { border-color: var(--accent); outline: none; }
+button { font: inherit; font-weight: 600; background: var(--accent); color: #1b1607; border: none; border-radius: 6px; padding: 0.5rem 0.95rem; cursor: pointer; transition: filter 0.15s; }
+button:hover { filter: brightness(1.1); }
+button:disabled { opacity: 0.55; cursor: default; }
+.pricing-flow { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.pricing-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--border); }
+.pricing-tabs [role="tab"] { color: var(--muted); background: transparent; border: 0; border-right: 1px solid var(--border); border-radius: 0; padding: 0.72rem 0.55rem; }
+.pricing-tabs [role="tab"]:last-child { border-right: 0; }
+.pricing-tabs [aria-selected="true"] { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.pricing-panel { padding: 1rem 1.1rem; }
+.pricing-panel[hidden] { display: none; }
+.pricing-price { margin: 0 0 0.35rem; font-weight: 700; }
+.pricing-detail { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.checkout-step { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 1rem 1.1rem; border-top: 1px solid var(--border); }
+.checkout-step label { width: 100%; color: var(--text); font-weight: 700; }
+.checkout-note { width: 100%; margin: 0.25rem 0 0; color: var(--muted); font-size: 0.86rem; }
 .error { color: var(--bad); font-size: 0.88rem; }
 footer { margin-top: 4rem; padding-top: 1.4rem; border-top: 1px solid var(--border); font-size: 0.84rem; color: var(--muted); }
 .imprint { font-family: var(--mono); font-size: 0.76rem; }
+@media (max-width: 560px) {
+	.pricing-tabs { grid-template-columns: 1fr; }
+	.pricing-tabs [role="tab"] { border-right: 0; border-bottom: 1px solid var(--border); }
+	.pricing-tabs [role="tab"]:last-child { border-bottom: 0; }
+}
 </style>
 </head>
 <body>
@@ -106,22 +127,71 @@ curl -H "Authorization: Bearer &lt;key&gt;" \\
 <p class="meta">Records follow the published <a href="https://netm8.com/standards">FeedItemV1 contract</a>: same shape as every netm8 feed.</p>
 
 <h2>Get a key</h2>
-<form id="checkout">
-<input id="email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email">
-<button type="submit">Get an API key</button>
+<section class="pricing-flow" aria-labelledby="pricing-title">
+<h3 id="pricing-title" style="position:absolute;left:-9999px">Pricing plans</h3>
+<div class="pricing-tabs" role="tablist" aria-label="Pricing plans">
+<button type="button" role="tab" id="plan-tab-payg" aria-selected="true" aria-controls="plan-panel-payg" data-plan="payg">Pay as you go</button>
+<button type="button" role="tab" id="plan-tab-fixed-monthly" aria-selected="false" aria-controls="plan-panel-fixed-monthly" data-plan="fixed_monthly" tabindex="-1">Fixed rate - monthly</button>
+<button type="button" role="tab" id="plan-tab-fixed-annual" aria-selected="false" aria-controls="plan-panel-fixed-annual" data-plan="fixed_annual" tabindex="-1">Fixed rate - annual</button>
+</div>
+<div class="pricing-panel" role="tabpanel" id="plan-panel-payg" aria-labelledby="plan-tab-payg" data-cta="Start free">
+<p class="pricing-price">Free during launch; then US$0.10 per API call</p>
+<p class="pricing-detail">Your first 30 calls are covered by signup credit after billing is enabled. Best for occasional recall checks and agent experiments.</p>
+</div>
+<div class="pricing-panel" role="tabpanel" id="plan-panel-fixed-monthly" aria-labelledby="plan-tab-fixed-monthly" data-cta="Start monthly" hidden>
+<p class="pricing-price">Fixed rate - monthly</p>
+<p class="pricing-detail">500 API calls included every month, then usage overage at US$0.10 per call. Built for scheduled compliance pulls.</p>
+</div>
+<div class="pricing-panel" role="tabpanel" id="plan-panel-fixed-annual" aria-labelledby="plan-tab-fixed-annual" data-cta="Start annual" hidden>
+<p class="pricing-price">Fixed rate - annual</p>
+<p class="pricing-detail">7,500 API calls included for the year at a better effective rate. Built for teams embedding recall monitoring.</p>
+</div>
+<form id="checkout" class="checkout-step">
+<input type="hidden" name="plan" value="payg">
+<label for="email">Step 2: where should the key receipt go?</label>
+<input id="email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for selected plan">
+<button type="submit">Start free</button>
+<p class="checkout-note">Launch access is free while Stripe billing is verified. The same flow switches to Checkout when billing mode is paid.</p>
 <p class="error" id="checkout-error" role="alert" hidden></p>
 </form>
+</section>
 <script>
 const form = document.getElementById("checkout");
 const errorEl = document.getElementById("checkout-error");
+const button = form.querySelector("button");
+const pricingTabs = Array.from(document.querySelectorAll('.pricing-tabs [role="tab"]'));
+function selectPricingTab(tab) {
+	for (const current of pricingTabs) {
+		const selected = current === tab;
+		current.setAttribute("aria-selected", String(selected));
+		current.tabIndex = selected ? 0 : -1;
+		document.getElementById(current.getAttribute("aria-controls")).hidden = !selected;
+	}
+	const panel = document.getElementById(tab.getAttribute("aria-controls"));
+	form.plan.value = tab.dataset.plan;
+	button.textContent = panel.dataset.cta;
+	tab.focus();
+}
+pricingTabs.forEach((tab, index) => {
+	tab.addEventListener("click", () => selectPricingTab(tab));
+	tab.addEventListener("keydown", (event) => {
+		if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+		event.preventDefault();
+		const offset = event.key === "ArrowRight" ? 1 : pricingTabs.length - 1;
+		selectPricingTab(pricingTabs[(index + offset) % pricingTabs.length]);
+	});
+});
 form.addEventListener("submit", async (event) => {
 	event.preventDefault();
 	errorEl.hidden = true;
+	const originalText = button.textContent;
+	button.disabled = true;
+	button.textContent = "Working...";
 	try {
 		const res = await fetch("/billing/checkout", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ email: form.email.value }),
+			body: JSON.stringify({ email: form.email.value, plan: form.plan.value }),
 		});
 		const data = await res.json();
 		if (!res.ok) throw new Error(data.error?.message ?? "Checkout failed.");
@@ -129,6 +199,8 @@ form.addEventListener("submit", async (event) => {
 	} catch (err) {
 		errorEl.textContent = err.message;
 		errorEl.hidden = false;
+		button.disabled = false;
+		button.textContent = originalText;
 	}
 });
 </script>`,

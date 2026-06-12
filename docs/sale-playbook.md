@@ -52,7 +52,7 @@ Schedule a cutover window: export → import → deploy on buyer account → mov
 DNS/domain → retire seller Worker.
 
 **Stripe** — products/prices/meters do not transfer. Buyer creates the
-product, prices (PAYG metered + Standing licensed), and the billing meter on
+product, prices (Pay as you go metered + fixed monthly + fixed annual), and the billing meter on
 their account from the repo's documented ids; existing subscribers must
 re-checkout (the key-claim flow makes this a one-link email); the seller
 cancels remaining subscriptions at cutover. Small subscriber counts make

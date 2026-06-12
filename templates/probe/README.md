@@ -17,9 +17,11 @@ Stamped from `templates/probe` by `npm run new-probe -- <name>`.
 - `GET /` landing page (replace with the probe's pitch) with self-hosted analytics
 - `POST /v1/echo` example metered endpoint — API-key auth, monthly quota, 429s, usage events
   (validators run before metering, so rejected requests are never billed)
-- `POST /billing/checkout` Stripe Checkout (subscription mode) → `GET /billing/success`
-  → explicit `POST /billing/claim` one-time key reveal (atomic claim; the raw key is
-  never stored — it is minted at claim time and rendered straight from memory)
+- Shared pricing flow: `Pay as you go`, `Fixed rate - monthly`, and
+  `Fixed rate - annual`. With `BILLING_MODE=free_launch`, `POST
+  /billing/checkout` creates a local reservation and returns `GET
+  /billing/success`; with `BILLING_MODE=paid`, it creates a Stripe Checkout
+  Session. `POST /billing/claim` reveals the key once.
 - `POST /webhooks/stripe` signature-verified, idempotent reservation + revocation,
   safe against out-of-order delivery (deletion tombstones unclaimed reservations)
 - `scheduled` stub for daily cron work (snapshots, digests)
@@ -28,12 +30,12 @@ Stamped from `templates/probe` by `npm run new-probe -- <name>`.
 ## Before going live
 
 - Add a Cloudflare WAF rate-limiting rule for `POST /billing/checkout` (and
-  consider Turnstile on the landing form): it is unauthenticated and each call
-  creates a Stripe Checkout Session.
-- Note: `session_id` appears in the `/billing/success` URL (Stripe injects it),
-  so it lands in Workers Logs. The key reveal itself requires the POST claim,
-  and log access is privileged — accepted residual risk; revisit if your threat
-  model includes log readers.
+  consider Turnstile on the landing form): it is unauthenticated. In
+  `free_launch` it creates local reservations; in `paid` it creates Stripe
+  Checkout Sessions.
+- Note: `session_id` appears in the `/billing/success` URL. The key reveal
+  itself requires the POST claim, and log access is privileged. Revisit if
+  your threat model includes log readers.
 
 ## Setup
 
@@ -46,9 +48,10 @@ npm run migrate:local        # and migrate:remote before deploy
 wrangler secret put STRIPE_SECRET_KEY      # use a restricted rk_ key
 wrangler secret put STRIPE_WEBHOOK_SECRET
 
-# 3. Stripe dashboard: create a Product + recurring Price, paste the price id
-#    into wrangler.jsonc vars.STRIPE_PRICE_ID; add a webhook endpoint for
-#    https://<worker-url>/webhooks/stripe with events:
+# 3. Stripe dashboard, before switching BILLING_MODE to paid:
+#    create metered Pay as you go, fixed monthly, and fixed annual prices.
+#    Paste their ids into the STRIPE_* vars in wrangler.jsonc; add a webhook
+#    endpoint for https://<worker-url>/webhooks/stripe with events:
 #    checkout.session.completed, customer.subscription.deleted
 
 # 4. Develop / verify / ship

@@ -3,7 +3,7 @@ import { createMiddleware } from "hono/factory";
 import { z } from "zod";
 import { errorBody } from "./errors";
 import { type ApiKeyRecord, findApiKey } from "./keys";
-import { checkQuota, lifetimeUsage, recordUsage } from "./meter";
+import { checkQuota, recordUsage } from "./meter";
 import { reportMeterEvent } from "./stripe";
 
 export interface MeteredVariables {
@@ -20,13 +20,6 @@ export type CoreEnv = {
 const meterEnvSchema = z.object({
 	STRIPE_SECRET_KEY: z.string().min(1).optional(),
 	STRIPE_METER_EVENT_NAME: z.string().min(1).optional(),
-	/** Lifetime free calls per key: the first N calls are never reported to
-	 * the billing meter (Stripe period tiers reset monthly and cannot express
-	 * a one-time allowance). */
-	FREE_CALL_ALLOWANCE: z.number().int().min(0).optional(),
-	/** Monthly included calls for standing-plan keys (flat fee covers them);
-	 * calls beyond this report to the meter as overage. */
-	STANDING_INCLUDED_CALLS: z.number().int().min(0).optional(),
 });
 
 function extractBearer(authorization: string | undefined): string | null {
@@ -65,20 +58,15 @@ export function metered<E extends CoreEnv>(route: string, qty = 1): MiddlewareHa
 		await recordUsage(c.env.DB, record.id, route, qty);
 
 		const meterEnv = meterEnvSchema.parse(c.env);
-		// Pay-as-you-go keys carry a lifetime allowance (usage was just
-		// recorded, so the count includes this call: call #N stays free while
-		// N <= allowance). Standing keys instead get a monthly inclusion the
-		// flat fee already covers; only overage reports to the meter.
-		const billable =
-			record.plan === "standing"
-				? quota.used + qty > (meterEnv.STANDING_INCLUDED_CALLS ?? 0)
-				: (await lifetimeUsage(c.env.DB, record.id)) > (meterEnv.FREE_CALL_ALLOWANCE ?? 0);
+		// Every billed call reports to the meter — it is the complete usage
+		// record. Free allowances live in Stripe, not here: signup offers are
+		// promotional credit grants and fixed-rate inclusions are graduated
+		// price tiers, so suppressing events would double-discount.
 		if (
 			(record.plan === "pro" || record.plan === "standing") &&
 			record.stripe_customer_id !== null &&
 			meterEnv.STRIPE_SECRET_KEY !== undefined &&
-			meterEnv.STRIPE_METER_EVENT_NAME !== undefined &&
-			billable
+			meterEnv.STRIPE_METER_EVENT_NAME !== undefined
 		) {
 			c.executionCtx.waitUntil(
 				reportMeterEvent({

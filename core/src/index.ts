@@ -14,16 +14,29 @@ export {
 	revokeKeysForSubscription,
 	sha256Hex,
 } from "./keys";
-export { checkQuota, lifetimeUsage, monthlyUsage, type QuotaCheck, recordUsage } from "./meter";
+export { checkQuota, monthlyUsage, type QuotaCheck, recordUsage } from "./meter";
+export {
+	type BillingInterval,
+	type BillingMode,
+	billingModeSchema,
+	type CheckoutPlan,
+	checkoutPlanFromMetadata,
+	checkoutPlanSchema,
+	provisioningForCheckoutPlan,
+	type ReservationPlan,
+	reservationPlanSchema,
+} from "./pricing";
 export { getStripeSecrets, getWebhookSecret, type StripeSecrets } from "./secrets";
 export {
 	type CheckoutLineItem,
 	type CheckoutSession,
 	type CheckoutSessionCompleted,
 	type CreateCheckoutSessionInput,
+	type CreateCreditGrantInput,
 	cancelSubscription,
 	checkoutSessionCompletedSchema,
 	createCheckoutSession,
+	createCreditGrant,
 	type ReportMeterEventInput,
 	reportMeterEvent,
 	STRIPE_API_VERSION,

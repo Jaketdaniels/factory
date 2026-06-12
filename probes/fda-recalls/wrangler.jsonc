@@ -27,9 +27,19 @@
 		// STRIPE_WEBHOOK_SECRET) go in `.dev.vars` locally and
 		// `wrangler secret put <NAME>` in production — never here.
 		"APP_BASE_URL": "https://recalls.netm8.com",
-		"FREE_CALL_ALLOWANCE": 30,
+		// Keep live access free while Stripe prices/secrets are being verified.
+		// Switch to "paid" after the monthly/annual prices below are real.
+		"BILLING_MODE": "free_launch",
 		"STRIPE_PRICE_ID": "price_REPLACE_ME",
-		"PRO_MONTHLY_QUOTA": 10000
+		"STRIPE_FIXED_MONTHLY_PRICE_ID": "price_REPLACE_ME",
+		"STRIPE_FIXED_MONTHLY_METERED_PRICE_ID": "price_REPLACE_ME",
+		"STRIPE_FIXED_ANNUAL_PRICE_ID": "price_REPLACE_ME",
+		"STRIPE_FIXED_ANNUAL_METERED_PRICE_ID": "price_REPLACE_ME",
+		"PRO_MONTHLY_QUOTA": 10000,
+		"FREE_CALL_ALLOWANCE": 30,
+		"SIGNUP_CREDIT_CENTS": 300,
+		"FIXED_MONTHLY_INCLUDED_CALLS": 500,
+		"FIXED_ANNUAL_INCLUDED_CALLS": 7500
 	},
 	// openFDA publishes enforcement updates weekly (Wednesdays) but records
 	// trickle; four checks daily, offset from the tariff.watch herd.

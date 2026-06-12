@@ -12,7 +12,7 @@ export function escapeHtml(value: string): string {
 const FAVICON =
 	"data:image/svg+xml," +
 	encodeURIComponent(
-		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#16140f"/><path d="M7 11h18M7 16h13M7 21h16" stroke="#d2a44c" stroke-width="2.6" stroke-linecap="round"/></svg>',
+		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0b756f"/><path d="M7 11h18M7 16h13M7 21h16" stroke="#d2a44c" stroke-width="2.6" stroke-linecap="round"/></svg>',
 	);
 
 function page(title: string, body: string): string {
@@ -43,17 +43,19 @@ body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background
 .wordmark { font-family: var(--mono); font-weight: 600; font-size: 1.05rem; color: var(--text); text-decoration: none; }
 .wordmark span { color: var(--accent); }
 .site nav { display: flex; gap: 1.1rem; flex-wrap: wrap; }
-.site nav a { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+.site nav a { color: var(--muted); text-decoration: none; font-size: 0.85rem; transition: color 0.15s; }
 .site nav a:hover { color: var(--text); }
-h1 { font-size: clamp(1.8rem, 5vw, 2.3rem); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 1.1rem; text-wrap: balance; }
+.wordmark { transition: color 0.15s; }
+.wordmark:hover { color: var(--accent); }
+h1 { font-size: 2.3rem; line-height: 1.12; letter-spacing: 0; margin: 0 0 1.1rem; text-wrap: balance; }
 .meta-links { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 1.25rem 0 0; }
-.meta-link { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--muted); font: inherit; font-size: 0.9rem; text-decoration: none; background: none; border: none; padding: 0; cursor: pointer; transition: color 0.15s ease; }
+.meta-link { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--muted); font: inherit; font-size: 0.9rem; text-decoration: none; background: none; border: none; padding: 0; cursor: pointer; transition: color 0.15s; }
 .meta-link:hover { color: var(--text); }
 .meta-link svg { flex: none; }
 .meta-sep { width: 1px; height: 1.05rem; background: var(--border); }
-h2 { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 3.25rem 0 1rem; }
+h2 { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; letter-spacing: 0; text-transform: uppercase; color: var(--muted); margin: 3.25rem 0 1rem; }
 .lede { font-size: 1.05rem; max-width: 60ch; }
-a { color: var(--accent); text-underline-offset: 3px; transition: color 0.15s ease; }
+a { color: var(--accent); text-underline-offset: 3px; transition: color 0.15s; }
 a:hover { color: #e5c078; }
 code, pre, .datum, .badge { font-family: var(--mono); }
 code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.35rem; font-size: 0.85em; }
@@ -79,21 +81,32 @@ h3 { font-size: 0.95rem; margin: 1.6rem 0 0.45rem; }
 .deadline .kind { color: var(--muted); flex: none; font-size: 0.82rem; }
 .deadline a { color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .deadline a:hover { color: var(--accent); }
-.doc { padding: 0.85rem 0; border-top: 1px solid var(--border); }
+.doc { padding: 0.85rem 0; border-top: 1px solid var(--border); transition: padding-left 0.15s; }
 .doc:last-of-type { border-bottom: 1px solid var(--border); }
 .doc > a { color: var(--text); text-decoration: none; }
 .doc > a:hover { color: var(--accent); }
 .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: baseline; }
-.plan { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem 1.6rem; display: flex; flex-direction: column; gap: 0.7rem; }
-.plan .price { font-size: 1.05rem; font-weight: 600; margin: 0; }
-.plan .price .datum { font-size: 1.45rem; color: var(--accent); margin-right: 0.1rem; }
-.plan-detail { margin: 0; font-size: 0.88rem; color: var(--muted); max-width: 52ch; }
-.plan form { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.4rem; }
+.pricing-flow { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.pricing-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--border); }
+.pricing-tabs [role="tab"] { color: var(--muted); background: transparent; border: none; border-right: 1px solid var(--border); border-radius: 0; padding: 0.75rem 0.6rem; box-shadow: inset 0 -2px 0 transparent; }
+.pricing-tabs [role="tab"]:last-child { border-right: none; }
+.pricing-tabs [role="tab"]:hover { color: var(--text); filter: none; }
+.pricing-tabs [role="tab"]:active { transform: none; }
+.pricing-tabs [role="tab"][aria-selected="true"] { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.pricing-panel { padding: 1.05rem 1.2rem; }
+.pricing-panel[hidden] { display: none; }
+.pricing-price { font-size: 1.04rem; font-weight: 700; margin: 0 0 0.35rem; }
+.pricing-price .datum { font-size: 1.32rem; color: var(--accent); margin-right: 0.1rem; }
+.pricing-detail { margin: 0; font-size: 0.88rem; color: var(--muted); max-width: 58ch; }
+.checkout-step { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 1.05rem 1.2rem; border-top: 1px solid var(--border); }
+.checkout-step label { width: 100%; color: var(--text); font-weight: 700; font-size: 0.92rem; }
+.checkout-note { width: 100%; margin: 0.25rem 0 0; color: var(--muted); font-size: 0.86rem; }
 .faq { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem 2rem; }
 .faq h3 { font-size: 0.95rem; margin: 0 0 0.35rem; }
 .faq p { margin: 0; font-size: 0.88rem; color: var(--muted); }
-input { font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.65rem; flex: 1; min-width: 0; }
-button { font: inherit; font-weight: 600; background: var(--accent); color: #1b1607; border: none; border-radius: 6px; padding: 0.5rem 0.95rem; cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+input { font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.65rem; flex: 1; min-width: 0; transition: border-color 0.15s; }
+input:focus { border-color: var(--accent); outline: none; }
+button { font: inherit; font-weight: 600; background: var(--accent); color: #1b1607; border: none; border-radius: 6px; padding: 0.5rem 0.95rem; cursor: pointer; transition: filter 0.15s, transform 0.1s; }
 button:hover { filter: brightness(1.1); }
 button:active { transform: translateY(1px); }
 button:disabled { opacity: 0.55; cursor: default; }
@@ -108,6 +121,9 @@ footer p { margin: 0 0 0.5rem; }
 @media (max-width: 640px) {
 	.faq { grid-template-columns: 1fr; }
 	.deadline a { white-space: normal; }
+	.pricing-tabs { grid-template-columns: 1fr; }
+	.pricing-tabs [role="tab"] { border-right: none; border-bottom: 1px solid var(--border); }
+	.pricing-tabs [role="tab"]:last-child { border-bottom: none; }
 }
 @media (prefers-reduced-motion: reduce) {
 	* { transition: none !important; }
@@ -129,7 +145,7 @@ ${body}
 </main>
 <footer>
 <p>Source: <a href="https://www.federalregister.gov/">Federal Register</a> (US government work, public domain). tariff.watch publishes its own factual summaries and links every primary document. No third-party text is reproduced.</p>
-<p class="imprint">a <a href="https://netm8.com">netm8</a> feed · facts only, primary sources, immutable snapshots · <a href="/terms">terms</a> · <a href="/account/delete">delete your key &amp; data</a></p>
+<p class="imprint">a <a href="https://netm8.com" style="color:var(--accent)">netm8</a> feed · facts only, primary sources, immutable snapshots · <a href="/terms">terms</a> · <a href="/account/delete">delete your key &amp; data</a></p>
 </footer>
 </body>
 </html>`;
@@ -220,7 +236,8 @@ export interface LandingInput {
 	freeQuota: number;
 	baseUrl: string;
 	upcoming: UpcomingDeadline[];
-	standingCalls: number;
+	fixedMonthlyCalls: number;
+	fixedAnnualCalls: number;
 	/** SQLite datetime ("YYYY-MM-DD HH:MM:SS", UTC) of the latest ingest run. */
 	lastCheckedAt: string | null;
 }
@@ -251,7 +268,8 @@ function statusBadge(status: string): string {
 }
 
 export function landingPage(input: LandingInput): string {
-	const { docs, latestSnapshotDate, freeQuota, baseUrl, upcoming, lastCheckedAt, standingCalls } = input;
+	const { docs, latestSnapshotDate, freeQuota, baseUrl, upcoming, lastCheckedAt, fixedMonthlyCalls, fixedAnnualCalls } =
+		input;
 
 	const deadlineList =
 		upcoming.length === 0
@@ -354,26 +372,34 @@ curl -H "Authorization: Bearer $TARIFF_WATCH_KEY" ${safeBase}/snapshot/2026-06-0
 <p class="meta">MCP tools: <code>tariffs_list_changes</code>, <code>tariffs_effective_dates</code>, <code>tariffs_get_source</code>. Listing tools is free; each tool call meters as one request.</p>
 
 <h2 id="plans">Pricing</h2>
-<section class="plan">
-<p class="price">Your first <span class="datum">${freeQuota}</span> API calls are free</p>
-<p class="plan-detail">A month of daily updates on us. After that, US$0.10 per API call — Stripe bills last month's usage; no caps, cancel anytime. One key covers the API, the MCP tools, and the dated archive.</p>
-<form id="pro">
-<input id="pro-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for API key">
-<button type="submit">Get your key</button>
-<p class="error" id="pro-error" role="alert" hidden></p>
+<section class="pricing-flow" aria-labelledby="pricing-title">
+<h3 id="pricing-title" style="position:absolute;left:-9999px">Pricing plans</h3>
+<div class="pricing-tabs" role="tablist" aria-label="Pricing plans">
+<button type="button" role="tab" id="plan-tab-payg" aria-selected="true" aria-controls="plan-panel-payg" data-plan="payg">Pay as you go</button>
+<button type="button" role="tab" id="plan-tab-fixed-monthly" aria-selected="false" aria-controls="plan-panel-fixed-monthly" data-plan="fixed_monthly" tabindex="-1">Fixed rate - monthly</button>
+<button type="button" role="tab" id="plan-tab-fixed-annual" aria-selected="false" aria-controls="plan-panel-fixed-annual" data-plan="fixed_annual" tabindex="-1">Fixed rate - annual</button>
+</div>
+<div class="pricing-panel" role="tabpanel" id="plan-panel-payg" aria-labelledby="plan-tab-payg" data-cta="Start free">
+<p class="pricing-price">Free during launch; then US$0.10 per API call</p>
+<p class="pricing-detail">Your first <span class="datum">${freeQuota}</span> API calls are free via signup credit after billing is enabled. Best for trying the API, MCP tools, and dated archive without a subscription floor; cancel anytime.</p>
+</div>
+<div class="pricing-panel" role="tabpanel" id="plan-panel-fixed-monthly" aria-labelledby="plan-tab-fixed-monthly" data-cta="Start monthly" hidden>
+<p class="pricing-price"><span class="datum">$29</span> / month</p>
+<p class="pricing-detail">${fixedMonthlyCalls} API calls included every month, plus watchlist alerts by email and HMAC-signed webhook. Overage at US$0.10 per call. Cancel anytime.</p>
+</div>
+<div class="pricing-panel" role="tabpanel" id="plan-panel-fixed-annual" aria-labelledby="plan-tab-fixed-annual" data-cta="Start annual" hidden>
+<p class="pricing-price"><span class="datum">$290</span> / year</p>
+<p class="pricing-detail">${fixedAnnualCalls.toLocaleString("en-US")} API calls included for the year at a better effective rate, plus the same watchlist alerts and webhook delivery.</p>
+</div>
+<form id="checkout" class="checkout-step">
+<input type="hidden" name="plan" value="payg">
+<label for="checkout-email">Step 2: where should the key receipt go?</label>
+<input id="checkout-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for selected plan">
+<button type="submit">Start free</button>
+<p class="checkout-note">Launch access is free while Stripe billing is verified. Key shown once after checkout, never emailed.</p>
+<p class="error" id="checkout-error" role="alert" hidden></p>
 </form>
-<p class="meta">Key shown once after checkout, never emailed. Receipt and deletion link land in your inbox.</p>
-</section>
-
-<section class="plan">
-<p class="price"><span class="datum">$29</span> / month — Standing</p>
-<p class="plan-detail">${standingCalls} API calls included every month, plus watchlist alerts: follow programs or agencies and get an email and an HMAC-signed webhook the moment a matching document is recorded. Overage at US$0.10 per call. Same key, same endpoints.</p>
-<form id="standing">
-<input id="standing-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email for Standing checkout">
-<button type="submit">Go Standing</button>
-<p class="error" id="standing-error" role="alert" hidden></p>
-</form>
-<p class="meta">Manage watchlists with your key: <code>GET/POST /v1/watchlists</code> — never billed.</p>
+<p class="meta" style="padding:0 1.2rem 1.05rem;margin:0">Manage watchlists with your key: <code>GET/POST /v1/watchlists</code> — never billed.</p>
 </section>
 
 <h2 id="faq">Questions</h2>
@@ -433,6 +459,29 @@ tabs.forEach((tab, i) => {
     selectTab(tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]);
   });
 });
+const pricingTabs = Array.from(document.querySelectorAll('.pricing-tabs [role="tab"]'));
+const checkoutForm = document.getElementById("checkout");
+const checkoutButton = checkoutForm.querySelector("button");
+function selectPricingTab(tab) {
+  for (const current of pricingTabs) {
+    const selected = current === tab;
+    current.setAttribute("aria-selected", String(selected));
+    current.tabIndex = selected ? 0 : -1;
+    document.getElementById(current.getAttribute("aria-controls")).hidden = !selected;
+  }
+  const panel = document.getElementById(tab.getAttribute("aria-controls"));
+  checkoutForm.plan.value = tab.dataset.plan;
+  checkoutButton.textContent = panel.dataset.cta;
+  tab.focus();
+}
+pricingTabs.forEach((tab, i) => {
+  tab.addEventListener("click", () => selectPricingTab(tab));
+  tab.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    selectPricingTab(pricingTabs[(i + (e.key === "ArrowRight" ? 1 : pricingTabs.length - 1)) % pricingTabs.length]);
+  });
+});
 const copyBtn = document.getElementById("copy-md");
 copyBtn.addEventListener("click", async () => {
   const label = copyBtn.querySelector("span");
@@ -446,24 +495,15 @@ copyBtn.addEventListener("click", async () => {
   }
   setTimeout(() => { label.textContent = "Copy as markdown"; }, 2000);
 });
-wireForm("standing", "standing-error", async (form) => {
+wireForm("checkout", "checkout-error", async (form, button) => {
   const res = await fetch("/billing/checkout", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: form.email.value, plan: "standing" }),
+    body: JSON.stringify({ email: form.email.value, plan: form.plan.value }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message ?? "Checkout failed. Please try again.");
-  window.location.href = data.url;
-});
-wireForm("pro", "pro-error", async (form) => {
-  const res = await fetch("/billing/checkout", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: form.email.value }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message ?? "Checkout failed. Please try again.");
+  button.textContent = "Redirecting...";
   window.location.href = data.url;
 });
 </script>`,

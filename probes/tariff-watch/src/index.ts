@@ -1,19 +1,24 @@
 import {
 	type ApiKeyRecord,
+	billingModeSchema,
+	type CheckoutPlan,
 	type CheckoutSessionCompleted,
 	cancelSubscription,
+	checkoutPlanFromMetadata,
+	checkoutPlanSchema,
 	checkoutSessionCompletedSchema,
 	checkQuota,
 	createApiKey,
 	createCheckoutSession,
+	createCreditGrant,
 	errorBody,
 	findApiKey,
 	getStripeSecrets,
 	getWebhookSecret,
-	lifetimeUsage,
 	type MeteredVariables,
 	metered,
 	onApiError,
+	provisioningForCheckoutPlan,
 	recordUsage,
 	reportMeterEvent,
 	revokeKeysForSubscription,
@@ -57,7 +62,7 @@ type AppEnv = {
 
 const checkoutBodySchema = z.object({
 	email: z.string().email(),
-	plan: z.enum(["payg", "standing"]).default("payg"),
+	plan: checkoutPlanSchema.default("payg"),
 });
 const watchlistBodySchema = z.object({
 	kind: watchlistKindSchema,
@@ -75,6 +80,11 @@ const snapshotParamSchema = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2
 
 const adminEnvSchema = z.object({ ADMIN_TOKEN: z.string().min(16).optional() });
 const adminIngestBodySchema = z.object({ since: z.string().regex(DATE_PATTERN, "Use YYYY-MM-DD").optional() });
+const billingModeEnvSchema = z.object({ BILLING_MODE: billingModeSchema.default("paid") });
+
+function parseUrlEncodedBody(rawBody: ArrayBuffer): Record<string, string> {
+	return Object.fromEntries(new URLSearchParams(new TextDecoder().decode(rawBody)).entries());
+}
 
 interface MeterDenied {
 	status: 401 | 429;
@@ -85,8 +95,59 @@ interface MeterDenied {
 const meterEnvSchema = z.object({
 	STRIPE_SECRET_KEY: z.string().min(1).optional(),
 	STRIPE_METER_EVENT_NAME: z.string().min(1).optional(),
-	FREE_CALL_ALLOWANCE: z.number().int().min(0).optional(),
 });
+
+function successUrl(env: Env, sessionId: string): string {
+	const url = new URL("/billing/success", env.APP_BASE_URL);
+	url.searchParams.set("session_id", sessionId);
+	return url.toString();
+}
+
+async function reserveFreeLaunchSession(env: Env, email: string, plan: CheckoutPlan): Promise<string> {
+	const sessionId = `free_${crypto.randomUUID()}`;
+	const provisioning = provisioningForCheckoutPlan(plan);
+	await env.DB.prepare(
+		"INSERT INTO provisioned_keys (checkout_session_id, email, stripe_customer_id, stripe_subscription_id, plan, billing_interval) VALUES (?, ?, NULL, NULL, ?, ?)",
+	)
+		.bind(sessionId, email, provisioning.reservationPlan, provisioning.billingInterval)
+		.run();
+	return sessionId;
+}
+
+function checkoutInputForPlan(env: Env, email: string, plan: CheckoutPlan, secretKey: string) {
+	const base = {
+		secretKey,
+		successUrl: `${env.APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+		cancelUrl: `${env.APP_BASE_URL}/`,
+		customerEmail: email,
+	};
+	switch (plan) {
+		case "fixed_monthly":
+			return {
+				...base,
+				priceId: env.STRIPE_FIXED_MONTHLY_PRICE_ID,
+				extraLineItems: [{ priceId: env.STRIPE_FIXED_MONTHLY_METERED_PRICE_ID, metered: true }],
+				metadata: { plan },
+				submitNote: `Fixed rate - monthly: $29/month covering ${env.FIXED_MONTHLY_INCLUDED_CALLS} API calls and watchlist alerts. Overage is US$0.10 per API call. Cancel anytime.`,
+			};
+		case "fixed_annual":
+			return {
+				...base,
+				priceId: env.STRIPE_FIXED_ANNUAL_PRICE_ID,
+				extraLineItems: [{ priceId: env.STRIPE_FIXED_ANNUAL_METERED_PRICE_ID, metered: true }],
+				metadata: { plan },
+				submitNote: `Fixed rate - annual: $290/year covering ${env.FIXED_ANNUAL_INCLUDED_CALLS} API calls and watchlist alerts. Overage is US$0.10 per API call.`,
+			};
+		case "payg":
+			return {
+				...base,
+				priceId: env.STRIPE_PRICE_ID,
+				meteredPrice: true,
+				metadata: { plan },
+				submitNote: `Pay as you go: your first ${env.FREE_CALL_ALLOWANCE} API calls are free as signup credit. US$0.10 per API call after that, billed monthly for actual usage. Cancel anytime.`,
+			};
+	}
+}
 
 /**
  * Bearer auth + metering for routes the metered() middleware can't wrap
@@ -120,14 +181,13 @@ async function meterBearerRequest(
 	}
 	await recordUsage(c.env.DB, record.id, route);
 	const meterEnv = meterEnvSchema.parse(c.env);
+	// Mirror of core metered(): every billed call reports — allowances live
+	// in Stripe (signup credit grant / fixed-rate graduated tier), not here.
 	if (
-		record.plan === "pro" &&
+		(record.plan === "pro" || record.plan === "standing") &&
 		record.stripe_customer_id !== null &&
 		meterEnv.STRIPE_SECRET_KEY !== undefined &&
-		meterEnv.STRIPE_METER_EVENT_NAME !== undefined &&
-		// Lifetime allowance mirror of core metered(): the first N calls are
-		// never reported to the billing meter.
-		(await lifetimeUsage(c.env.DB, record.id)) > (meterEnv.FREE_CALL_ALLOWANCE ?? 0)
+		meterEnv.STRIPE_METER_EVENT_NAME !== undefined
 	) {
 		c.executionCtx.waitUntil(
 			reportMeterEvent({
@@ -208,16 +268,17 @@ async function timingSafeEqualStrings(a: string, b: string): Promise<boolean> {
  * raw key is ever persisted.
  */
 async function reserveSession(env: Env, session: CheckoutSessionCompleted): Promise<void> {
-	const plan = session.metadata?.plan === "standing" ? "standing" : "payg";
+	const provisioning = provisioningForCheckoutPlan(checkoutPlanFromMetadata(session.metadata?.plan));
 	await env.DB.prepare(
-		"INSERT INTO provisioned_keys (checkout_session_id, email, stripe_customer_id, stripe_subscription_id, plan) VALUES (?, ?, ?, ?, ?) ON CONFLICT(checkout_session_id) DO NOTHING",
+		"INSERT INTO provisioned_keys (checkout_session_id, email, stripe_customer_id, stripe_subscription_id, plan, billing_interval) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(checkout_session_id) DO NOTHING",
 	)
 		.bind(
 			session.id,
 			session.customer_details?.email ?? null,
 			session.customer ?? null,
 			session.subscription ?? null,
-			plan,
+			provisioning.reservationPlan,
+			provisioning.billingInterval,
 		)
 		.run();
 }
@@ -229,6 +290,7 @@ const provisionedRowSchema = z.object({
 	claimed_at: z.string().nullable(),
 	revoked_at: z.string().nullable(),
 	plan: z.enum(["payg", "standing"]).catch("payg"),
+	billing_interval: z.enum(["usage", "monthly", "annual"]).catch("usage"),
 });
 
 /** The key reveal carries a secret: never cache, never leak the URL via referrer. */
@@ -295,7 +357,8 @@ const app = new Hono<AppEnv>()
 				baseUrl: c.env.APP_BASE_URL,
 				upcoming,
 				lastCheckedAt: lastChecked?.created_at ?? null,
-				standingCalls: c.env.STANDING_INCLUDED_CALLS,
+				fixedMonthlyCalls: c.env.FIXED_MONTHLY_INCLUDED_CALLS,
+				fixedAnnualCalls: c.env.FIXED_ANNUAL_INCLUDED_CALLS,
 			}),
 		);
 	})
@@ -325,15 +388,16 @@ const app = new Hono<AppEnv>()
 
 ## Keyed surfaces (Authorization: Bearer <key>)
 
-Get a key: add a card at /#plans (Stripe Checkout, $0 due today). Your first
-30 API calls are free — a month of daily updates. After that, every call is
-US$0.10, billed monthly for actual usage; cancel anytime. The key is shown
-once and never emailed.
+Get a key: choose a plan at /#plans. Launch access is free while Stripe billing
+is verified. After launch, pay as you go means the first 30 API calls are free
+via signup credit, then every call is US$0.10, billed monthly for actual usage;
+cancel anytime. The key is shown once and never emailed.
 
 - GET /v1/changes?since=YYYY-MM-DD&limit=50 returns structured documents: number, title, type, abstract, publication date, agencies, program, legal status, effective dates, confidence, and primary-source URL.
 - GET /snapshot/YYYY-MM-DD.md: the immutable dated archive for point-in-time grounding ("what was known on this date").
 - POST /mcp: tools/call meters per call; initialize and tools/list are open. Tools: tariffs_list_changes, tariffs_effective_dates, tariffs_get_source.
-- Watchlists (keyed, never billed): GET/POST /v1/watchlists and DELETE /v1/watchlists/<id>. Body: {"kind":"program"|"agency","value":"...","webhook_url":"https://..."} — alerts arrive by email and HMAC-signed webhook when matching documents are recorded. Standing plan ($29/mo, 300 calls included) checkout: POST /billing/checkout with {"email":"...","plan":"standing"}.
+- Watchlists (keyed, never billed): GET/POST /v1/watchlists and DELETE /v1/watchlists/<id>. Body: {"kind":"program"|"agency","value":"...","webhook_url":"https://..."} — alerts arrive by email and HMAC-signed webhook when matching documents are recorded.
+- Fixed rate - monthly includes ${c.env.FIXED_MONTHLY_INCLUDED_CALLS} calls/month. Fixed rate - annual includes ${c.env.FIXED_ANNUAL_INCLUDED_CALLS} calls/year. Use {"plan":"fixed_monthly"} or {"plan":"fixed_annual"}.
 - Delete your key and its data anytime: POST /account/delete with {"email": "..."} or visit /account/delete.
 
 Every fact links to its primary federalregister.gov document.
@@ -654,31 +718,15 @@ Terms (attribution, redistribution, licensing): /terms
 
 	.post("/billing/checkout", zValidator("json", checkoutBodySchema), async (c) => {
 		const { email, plan } = c.req.valid("json");
+		const billing = billingModeEnvSchema.parse(c.env);
+		if (billing.BILLING_MODE === "free_launch") {
+			const sessionId = await reserveFreeLaunchSession(c.env, email, plan);
+			c.executionCtx.waitUntil(track(c.env.DB, "checkout_started", { plan, billing_mode: "free_launch" }));
+			return c.json({ url: successUrl(c.env, sessionId) });
+		}
 		const secrets = getStripeSecrets(c.env);
-		const session = await createCheckoutSession(
-			plan === "standing"
-				? {
-						secretKey: secrets.STRIPE_SECRET_KEY,
-						priceId: c.env.STRIPE_STANDING_PRICE_ID,
-						successUrl: `${c.env.APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-						cancelUrl: `${c.env.APP_BASE_URL}/`,
-						customerEmail: email,
-						extraLineItems: [{ priceId: c.env.STRIPE_PRICE_ID, metered: true }],
-						metadata: { plan: "standing" },
-						submitNote: `Standing: $29/month covering ${c.env.STANDING_INCLUDED_CALLS} API calls and watchlist alerts. Beyond that, US$0.10 per API call as overage. Cancel anytime.`,
-					}
-				: {
-						secretKey: secrets.STRIPE_SECRET_KEY,
-						priceId: c.env.STRIPE_PRICE_ID,
-						successUrl: `${c.env.APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-						cancelUrl: `${c.env.APP_BASE_URL}/`,
-						customerEmail: email,
-						meteredPrice: true,
-						metadata: { plan: "payg" },
-						submitNote: `Your first ${c.env.FREE_CALL_ALLOWANCE} API calls are free — about a month of daily updates. US$0.10 per API call after that, billed monthly for actual usage. $0 is due today. Cancel anytime.`,
-					},
-		);
-		c.executionCtx.waitUntil(track(c.env.DB, "checkout_started", { plan }));
+		const session = await createCheckoutSession(checkoutInputForPlan(c.env, email, plan, secrets.STRIPE_SECRET_KEY));
+		c.executionCtx.waitUntil(track(c.env.DB, "checkout_started", { plan, billing_mode: "paid" }));
 		return c.json({ url: session.url });
 	})
 
@@ -688,7 +736,7 @@ Terms (attribution, redistribution, licensing): /terms
 		setSensitiveHeaders(c);
 		const { session_id } = c.req.valid("query");
 		const row = await c.env.DB.prepare(
-			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan FROM provisioned_keys WHERE checkout_session_id = ?",
+			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan, billing_interval FROM provisioned_keys WHERE checkout_session_id = ?",
 		)
 			.bind(session_id)
 			.first();
@@ -705,9 +753,13 @@ Terms (attribution, redistribution, licensing): /terms
 		return c.html(successPage({ kind: "ready", sessionId: session_id }));
 	})
 
-	.post("/billing/claim", zValidator("form", sessionIdSchema), async (c) => {
+	.post("/billing/claim", async (c) => {
 		setSensitiveHeaders(c);
-		const { session_id } = c.req.valid("form");
+		const parsed = sessionIdSchema.safeParse(parseUrlEncodedBody(await c.req.arrayBuffer()));
+		if (!parsed.success) {
+			return c.json(parsed, 400);
+		}
+		const { session_id } = parsed.data;
 		// Atomic claim: exactly one concurrent request wins the conditional UPDATE.
 		const claim = await c.env.DB.prepare(
 			"UPDATE provisioned_keys SET claimed_at = datetime('now') WHERE checkout_session_id = ? AND claimed_at IS NULL AND revoked_at IS NULL",
@@ -716,7 +768,7 @@ Terms (attribution, redistribution, licensing): /terms
 			.run();
 		if (claim.meta.changes === 0) {
 			const row = await c.env.DB.prepare(
-				"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan FROM provisioned_keys WHERE checkout_session_id = ?",
+				"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan, billing_interval FROM provisioned_keys WHERE checkout_session_id = ?",
 			)
 				.bind(session_id)
 				.first();
@@ -727,7 +779,7 @@ Terms (attribution, redistribution, licensing): /terms
 			return c.html(successPage({ kind: lost.revoked_at !== null ? "revoked" : "claimed-before" }));
 		}
 		const row = await c.env.DB.prepare(
-			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan FROM provisioned_keys WHERE checkout_session_id = ?",
+			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan, billing_interval FROM provisioned_keys WHERE checkout_session_id = ?",
 		)
 			.bind(session_id)
 			.first();
@@ -743,6 +795,29 @@ Terms (attribution, redistribution, licensing): /terms
 			await c.env.DB.prepare("UPDATE provisioned_keys SET key_id = ? WHERE checkout_session_id = ?")
 				.bind(created.id, session_id)
 				.run();
+			// The "first 30 calls free" offer: a US$3 promotional credit grant
+			// against metered usage. Idempotent per session; a failure (e.g.
+			// key missing the credit-grants scope) is logged and never blocks
+			// the key reveal — the grant can be re-issued operationally.
+			if (
+				billingModeEnvSchema.parse(c.env).BILLING_MODE === "paid" &&
+				provisioned.plan === "payg" &&
+				provisioned.stripe_customer_id !== null
+			) {
+				const secrets = getStripeSecrets(c.env);
+				try {
+					await createCreditGrant({
+						secretKey: secrets.STRIPE_SECRET_KEY,
+						customerId: provisioned.stripe_customer_id,
+						amountCents: c.env.SIGNUP_CREDIT_CENTS,
+						currency: "usd",
+						name: `First ${c.env.FREE_CALL_ALLOWANCE} API calls free — tariff.watch signup credit`,
+						idempotencyKey: `signup-credit-${session_id}`,
+					});
+				} catch (err) {
+					console.error(JSON.stringify({ event: "signup_credit_failed", session: session_id, message: String(err) }));
+				}
+			}
 			c.executionCtx.waitUntil(track(c.env.DB, "key_claimed"));
 			// Receipt + standing deletion offer; the raw key is never emailed.
 			if (provisioned.email !== null) {

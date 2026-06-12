@@ -42,6 +42,11 @@ describe("public routes", () => {
 		const html = await res.text();
 		expect(html).toContain("structured change event");
 		expect(html).toContain("F-0001-2026");
+		expect(html).toContain('role="tablist" aria-label="Pricing plans"');
+		expect(html).toContain("Pay as you go");
+		expect(html).toContain("Fixed rate - monthly");
+		expect(html).toContain("Fixed rate - annual");
+		expect(html).toContain("Launch access is free while Stripe billing is verified.");
 
 		const llms = await SELF.fetch("https://example.com/llms.txt");
 		expect(llms.status).toBe(200);

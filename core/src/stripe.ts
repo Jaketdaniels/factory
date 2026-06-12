@@ -117,6 +117,7 @@ async function stripePost<T>(
 	path: string,
 	form: Record<string, string>,
 	schema: z.ZodType<T>,
+	idempotencyKey?: string,
 ): Promise<T> {
 	const response = await fetch(`${STRIPE_BASE_URL}${path}`, {
 		method: "POST",
@@ -124,7 +125,9 @@ async function stripePost<T>(
 			authorization: `Bearer ${secretKey}`,
 			"content-type": "application/x-www-form-urlencoded",
 			"stripe-version": STRIPE_API_VERSION,
-			"idempotency-key": crypto.randomUUID(),
+			// Callers pass a deterministic key when retries must not duplicate
+			// the side effect (e.g. one signup credit per checkout session).
+			"idempotency-key": idempotencyKey ?? crypto.randomUUID(),
 		},
 		body: new URLSearchParams(form).toString(),
 	});
@@ -157,7 +160,7 @@ export interface CreateCheckoutSessionInput {
 	customerEmail?: string | undefined;
 	/** Usage-based (metered) prices reject `quantity` on line items. */
 	meteredPrice?: boolean | undefined;
-	/** Additional line items (e.g. a flat Standing fee alongside the meter). */
+	/** Additional line items (e.g. a fixed-rate flat fee alongside the meter). */
 	extraLineItems?: CheckoutLineItem[] | undefined;
 	/** Copied onto the session and surfaced in checkout.session.completed —
 	 * used to carry the chosen plan into webhook provisioning. */
@@ -218,6 +221,45 @@ export async function cancelSubscription(secretKey: string, subscriptionId: stri
 		console.error(JSON.stringify({ event: "stripe_cancel_failed", subscriptionId, status: response.status }));
 	}
 	return response.ok;
+}
+
+const creditGrantSchema = z.object({ id: z.string() });
+
+export interface CreateCreditGrantInput {
+	secretKey: string;
+	customerId: string;
+	/** Positive integer in the currency's minor unit (300 = US$3.00). */
+	amountCents: number;
+	currency: string;
+	/** Shown on the customer's invoices/credit history (max 100 chars). */
+	name: string;
+	/** Deterministic key so webhook/claim retries never double-grant. */
+	idempotencyKey: string;
+}
+
+/**
+ * Grant promotional billing credit that Stripe applies automatically to
+ * metered usage charges (and only those — scope is price_type=metered).
+ * Used to back "first N calls free" offers without suppressing meter events:
+ * the meter stays a complete record of usage and the credit absorbs the cost.
+ * Requires the Credit Grants write scope on the restricted key.
+ */
+export async function createCreditGrant(input: CreateCreditGrantInput): Promise<{ id: string }> {
+	return stripePost(
+		input.secretKey,
+		"/v1/billing/credit_grants",
+		{
+			customer: input.customerId,
+			name: input.name,
+			category: "promotional",
+			"amount[type]": "monetary",
+			"amount[monetary][currency]": input.currency,
+			"amount[monetary][value]": String(input.amountCents),
+			"applicability_config[scope][price_type]": "metered",
+		},
+		creditGrantSchema,
+		input.idempotencyKey,
+	);
 }
 
 const meterEventSchema = z.object({ identifier: z.string().optional() });

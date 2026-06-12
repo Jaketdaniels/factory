@@ -1,4 +1,4 @@
-/** Server-rendered pages for netm8.com — the umbrella, same design system as the feeds. */
+/** Server-rendered pages for netm8.com — the umbrella brand, distinct from feed templates. */
 
 export function escapeHtml(value: string): string {
 	return value
@@ -12,7 +12,7 @@ export function escapeHtml(value: string): string {
 const FAVICON =
 	"data:image/svg+xml," +
 	encodeURIComponent(
-		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#16140f"/><path d="M8 22V10l8 8V10M20 22V10h4" stroke="#d2a44c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0b756f"/><path d="M7 22V10l9 9V10M20 22V10h5" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
 	);
 
 function page(title: string, description: string, body: string): string {
@@ -29,49 +29,105 @@ function page(title: string, description: string, body: string): string {
 <title>${escapeHtml(title)}</title>
 <style>
 :root {
-	color-scheme: dark;
-	--bg: #131210; --surface: #1b1916; --border: #2c2822;
-	--text: #eae6de; --muted: #a59c8d; --accent: #d2a44c;
+	color-scheme: light;
+	--bg: #f4f2ed; --surface: #faf9f6; --border: #e0dcd4; --border-hi: #cbc5ba;
+	--text: #1e1b16; --muted: #7a7266; --muted-hi: #958c7e;
+	--accent: #0b756f; --accent-hi: #085e59; --accent-glint: #e6f4ef;
+	--warm: #b8863b; --warm-hi: #d49c44;
 	--mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; }
-body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); max-width: 44rem; margin: 0 auto; padding: 2.25rem 1.25rem 4rem; line-height: 1.65; }
-.site { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.75rem; }
-.wordmark { font-family: var(--mono); font-weight: 600; font-size: 1.05rem; color: var(--text); text-decoration: none; }
-.wordmark span { color: var(--accent); }
-.site nav { display: flex; gap: 1.1rem; flex-wrap: wrap; }
-.site nav a { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
-.site nav a:hover { color: var(--text); }
-h1 { font-size: clamp(1.8rem, 5vw, 2.3rem); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 1.1rem; text-wrap: balance; }
-h2 { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 3.25rem 0 1rem; }
-h3 { font-size: 0.95rem; margin: 1.6rem 0 0.45rem; }
-.lede { font-size: 1.05rem; max-width: 60ch; }
-a { color: var(--accent); text-underline-offset: 3px; }
-a:hover { color: #e5c078; }
-code, pre { font-family: var(--mono); }
-code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.35rem; font-size: 0.85em; }
-pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; line-height: 1.55; font-size: 0.82rem; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.4rem; margin: 0 0 1rem; }
-.card h3 { margin-top: 0; }
-.card p { margin: 0.35rem 0 0; font-size: 0.9rem; color: var(--muted); }
-.card .live { color: #8fb284; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.card .soon { color: var(--muted); font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); max-width: 64rem; margin: 0 auto; padding: 1.5rem 2rem 5rem; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+
+/* ── Header ── */
+.site { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 3rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+.wordmark { font-family: var(--mono); font-weight: 750; font-size: 1.1rem; color: var(--text); text-decoration: none; letter-spacing: -0.01em; }
+.wordmark span { color: var(--warm); }
+.site nav { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.site nav a { color: var(--muted); text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: color 0.15s; }
+.site nav a:hover { color: var(--accent); }
+
+/* ── Ambient hero background ── */
+.hero { position: relative; padding: 2rem 0 3.5rem; margin-bottom: 3.5rem; border-bottom: 1px solid var(--border); isolation: isolate; }
+.hero-bg { position: absolute; inset: -2rem -2rem -1px; z-index: -1; overflow: hidden; }
+.hero-bg::before { content: ""; position: absolute; inset: 0; background: radial-gradient(800px at 80% 10%, rgba(11, 117, 111, 0.1), transparent 70%), radial-gradient(600px at 20% 80%, rgba(184, 134, 59, 0.07), transparent 70%), radial-gradient(500px at 50% 50%, rgba(11, 117, 111, 0.04), transparent 70%), radial-gradient(400px at 90% 70%, rgba(184, 134, 59, 0.05), transparent 70%); }
+.hero-bg::after { content: ""; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E"); background-size: 200px 200px; opacity: 0.6; mix-blend-mode: multiply; pointer-events: none; }
+.hero-lines { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; opacity: 0.08; color: var(--accent); }
+
+/* ── Type ── */
+h1 { font-size: clamp(2.5rem, 5vw, 3.5rem); line-height: 1.08; letter-spacing: -0.025em; font-weight: 750; margin: 0; text-wrap: balance; max-width: 14ch; }
+h2 { font-family: var(--mono); font-size: 0.73rem; font-weight: 700; text-transform: uppercase; color: var(--accent); letter-spacing: 0.06em; margin: 4rem 0 1.25rem; }
+.hero-sub { font-size: 1.1rem; line-height: 1.5; color: var(--muted-hi); max-width: 42rem; margin: 1rem 0 1.5rem; }
+.hero-cta { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 0.7rem 1.3rem; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: background 0.15s, transform 0.1s; cursor: pointer; }
+.hero-cta:hover { background: var(--accent-hi); color: #fff; transform: translateY(-1px); }
+.kicker { font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; color: var(--accent); font-weight: 600; letter-spacing: 0.06em; margin: 0 0 1rem; display: inline-flex; align-items: center; gap: 0.4rem; }
+.kicker::before { content: ""; display: inline-block; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--accent); }
+a { color: var(--accent); text-underline-offset: 3px; transition: color 0.15s; }
+a:hover { color: var(--warm); }
+
+/* ── Problem ── */
+.problem-text { font-size: 1rem; line-height: 1.6; color: var(--muted); max-width: 40rem; margin: 0; }
+
+/* ── Benefits grid ── */
+.benefits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.benefit-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.3rem 1.4rem; transition: transform 0.15s, box-shadow 0.15s; }
+.benefit-tile:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+.benefit-icon { display: inline-flex; width: 2rem; height: 2rem; align-items: center; justify-content: center; background: var(--accent-glint); border-radius: 7px; margin-bottom: 0.7rem; color: var(--accent); }
+.benefit-tile h3 { font-size: 0.9375rem; font-weight: 650; margin: 0 0 0.3rem; }
+.benefit-tile p { color: var(--muted); margin: 0; font-size: 0.875rem; line-height: 1.5; }
+
+/* ── Live feeds ── */
+.feed-cards { display: grid; gap: 0.75rem; }
+.feed-card { display: flex; align-items: center; gap: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.3rem; transition: transform 0.15s, box-shadow 0.15s; }
+.feed-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+.feed-dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--accent); flex: none; }
+.feed-card h3 { font-size: 0.9375rem; font-weight: 650; margin: 0; }
+.feed-card h3 a { color: var(--text); text-decoration: none; }
+.feed-card h3 a:hover { color: var(--accent); }
+.feed-card p { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.4; }
+.feed-card .feed-cta { margin-left: auto; flex: none; font-size: 0.85rem; font-weight: 600; color: var(--accent); text-decoration: none; white-space: nowrap; }
+.feed-card .feed-cta::after { content: " →"; }
+.feed-card .feed-cta:hover { color: var(--warm); }
+
+/* ── Closing CTA ── */
+.closing-cta { margin-top: 4rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; text-align: center; }
+.closing-cta p { margin: 0 0 1rem; font-size: 0.9375rem; color: var(--muted); }
+.closing-cta .big { font-size: 1.1rem; color: var(--text); font-weight: 650; }
+
+/* ── Foot ── */
 ol, ul { padding-left: 1.2rem; }
-li { margin: 0.4rem 0; }
-.meta { font-size: 0.8rem; color: var(--muted); }
-footer { margin-top: 4rem; padding-top: 1.4rem; border-top: 1px solid var(--border); font-size: 0.84rem; color: var(--muted); }
-footer p { margin: 0 0 0.5rem; }
-.imprint { font-family: var(--mono); font-size: 0.76rem; }
+li { margin: 0.45rem 0; }
+footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.84rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.25rem 1.5rem; }
+footer p { margin: 0; }
+.imprint { font-family: var(--mono); font-size: 0.76rem; color: var(--muted-hi); }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+	.benefits { grid-template-columns: 1fr; }
+	body { padding: 1rem 1.25rem 4rem; }
+	h1 { font-size: clamp(2rem, 7vw, 2.6rem); }
+	.hero-sub { font-size: 1rem; }
+	.hero { padding: 1.5rem 0 2.5rem; }
+	.feed-card { flex-wrap: wrap; }
+	.feed-card .feed-cta { margin-left: 0; }
+}
+@media (max-width: 480px) {
+	.site { align-items: flex-start; }
+	.site nav { width: 100%; }
+	h1 { max-width: 100%; }
+}
 </style>
 </head>
 <body>
 <header class="site">
 <a class="wordmark" href="/">net<span>m8</span></a>
-<nav><a href="/standards">standards</a><a href="/licensing">licensing</a><a href="/contact">contact</a></nav>
+<nav><a href="/standards">Standards</a><a href="/licensing">Licensing</a><a href="/contact">Contact</a></nav>
 </header>
 ${body}
 <footer>
-<p class="imprint">netm8 · changelogs of government rules · primary sources only · <a href="/standards">the contract</a></p>
+<p class="imprint">netm8</p>
+<p>specialist context kept current</p>
+<p><a href="/standards">Feed contract</a></p>
 </footer>
 </body>
 </html>`;
@@ -79,38 +135,78 @@ ${body}
 
 export function homePage(): string {
 	return page(
-		"netm8 — changelogs of government rules",
-		"Machine-readable changefeeds of government rule changes: normalized evidence fields, immutable snapshots, primary-source links. Built for AI agents and the people who run them.",
-		`<h1>Changelogs of government rules.</h1>
-<p class="lede">Governments publish rule changes as prose scattered across registers and dockets. netm8 feeds read the primary sources on a schedule and publish each change as a structured record: what changed, its legal status, when it takes effect, and a link to the government document — for AI agents, compliance software, and the people who run them.</p>
+		"netm8 — current context APIs for specialist domains",
+		"Government registers, regulatory filings, and agency sources delivered as clean, source-linked APIs for AI agents and developers.",
+		`<section class="hero">
+<div class="hero-bg">
+<svg class="hero-lines" viewBox="0 0 800 400" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 250 Q 200 80, 400 220 T 800 180" stroke="currentColor" stroke-width="0.6"/><path d="M0 300 Q 250 150, 450 280 T 800 120" stroke="currentColor" stroke-width="0.4"/><path d="M0 200 Q 180 50, 380 200 T 800 280" stroke="currentColor" stroke-width="0.3"/></svg>
+</div>
+<p class="kicker">For AI agents that answer about what's new</p>
+<h1>Current specialist context for your stack.</h1>
+<p class="hero-sub">Government registers, regulatory filings, and agency sources — delivered as clean, source-linked APIs. Your agents get fresh facts without building scrapers.</p>
+<a class="hero-cta" href="https://tariff.watch">Start free →</a>
+</section>
 
-<h2>Method</h2>
-<ul>
-<li><strong>Primary sources only.</strong> Every record links the government document it came from; reuse rights are affirmatively established before a source is onboarded.</li>
-<li><strong>Facts, not takes.</strong> Statuses are inferred only from signals the source carries — never keyword-guessed. Source corrections propagate and are recorded as corrections.</li>
-<li><strong>Immutable history.</strong> Dated snapshots never change once their day has passed, so software can prove what was known on a date.</li>
-<li><strong>One contract.</strong> Every feed publishes the same record shape — <a href="/standards">FeedItemV1</a> — across JSON, RSS, calendar, webhook, and MCP.</li>
-</ul>
+<h2>Why netm8</h2>
+<p class="problem-text">Your AI's training data froze months ago. One tariff change or recall notice and your agent's answer is wrong. netm8 polls primary sources daily so your context stays current — without you maintaining ingest pipelines.</p>
 
-<h2>Feeds</h2>
-<div class="card">
-<span class="live">live</span>
+<h2>What you get</h2>
+<div class="benefits">
+<div class="benefit-tile">
+<div class="benefit-icon">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+</div>
+<h3>Source-linked records</h3>
+<p>Every fact carries its government URL. Verify any answer in one click.</p>
+</div>
+<div class="benefit-tile">
+<div class="benefit-icon">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+</div>
+<h3>Immutable snapshots</h3>
+<p>Dated archives that never change. Audit trails your team can actually rely on.</p>
+</div>
+<div class="benefit-tile">
+<div class="benefit-icon">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+</div>
+<h3>Drop-in protocols</h3>
+<p>llms.txt, MCP, JSON API, RSS. Adapters your agents already know how to use.</p>
+</div>
+<div class="benefit-tile">
+<div class="benefit-icon">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+</div>
+<h3>One schema</h3>
+<p>FeedItemV1 across every feed. Integrate once, use every domain.</p>
+</div>
+</div>
+
+<h2>Live feeds</h2>
+<div class="feed-cards">
+<div class="feed-card">
+<span class="feed-dot"></span>
+<div>
 <h3><a href="https://tariff.watch">tariff.watch</a></h3>
-<p>US tariff, customs, and trade-action changes from the Federal Register: programs, legal status, effective dates, comment deadlines. Free daily snapshot, RSS, and calendar; metered API, MCP tools, and dated archive.</p>
+<p>US tariff changes from the Federal Register — programs, legal status, effective dates, comment deadlines.</p>
 </div>
-<div class="card">
-<span class="live">live</span>
+<a class="feed-cta" href="https://tariff.watch">Start free</a>
+</div>
+<div class="feed-card">
+<span class="feed-dot"></span>
+<div>
 <h3><a href="https://recalls.netm8.com">recalls.netm8.com</a></h3>
-<p>FDA food, drug, and device recalls as structured change events: severity (recall class), lifecycle status, dates, provenance with raw-snapshot hashes. From openFDA enforcement reports, checked four times daily.</p>
+<p>FDA recalls as structured events — severity, lifecycle status, provenance, source hashes.</p>
 </div>
-<div class="card">
-<span class="soon">in selection</span>
-<h3>Feed #3</h3>
-<p>Candidates are scored against a published rubric (source quality, license gate, buyer evidence) before any code is written. Next in queue: BIS export controls (89/100).</p>
+<a class="feed-cta" href="https://recalls.netm8.com">Start free</a>
+</div>
 </div>
 
-<h2>For agents</h2>
-<p>Each feed serves <code>llms.txt</code>, markdown snapshots sized for context windows, and an MCP server listed in the official registry. Discovery is free; tool calls are metered per use — no subscription required to make the first call.</p>`,
+<div class="closing-cta">
+<p class="big">Free during launch. Metered pay-as-you-go after. No subscription floor.</p>
+<p>Your first API key in under a minute.</p>
+<a class="hero-cta" href="https://tariff.watch">Get your API key →</a>
+</div>`,
 	);
 }
 
@@ -119,7 +215,7 @@ export function standardsPage(): string {
 		"Standards — netm8",
 		"The netm8 feed contract: FeedItemV1 record schema and the six publishing rules every feed follows.",
 		`<h1>Standards</h1>
-<p class="lede">Every netm8 feed publishes the same record shape under the same rules. The contract is versioned and public; if a feed violates it, that is a bug.</p>
+<p class="hero-sub" style="margin-bottom:2rem">Every netm8 feed publishes the same record shape under the same rules. The contract is versioned and public; if a feed violates it, that is a bug.</p>
 
 <h2>FeedItemV1</h2>
 <p>One canonical record type — a <strong>change event</strong> — serialized identically across JSON, RSS, calendar, webhook, and MCP. The machine-readable contract lives at a stable URL:</p>
@@ -144,21 +240,21 @@ export function standardsPage(): string {
 export function licensingPage(): string {
 	return page(
 		"Licensing — netm8",
-		"How netm8 feeds may be used: free reading with attribution, metered machine access per feed, licensed commercial redistribution.",
+		"How netm8 feeds may be used: free reading with attribution, launch-free API keys, metered machine access after billing launch, and licensed commercial redistribution.",
 		`<h1>Licensing</h1>
-<p class="lede">The underlying facts are public records. What netm8 sells is the derived layer: normalized evidence fields, immutable archives, machine interfaces, and alerting.</p>
+<p class="hero-sub" style="margin-bottom:2rem">The underlying facts are public records. netm8 sells the useful layer: current normalization, source-linked context, immutable archives, machine interfaces, and alerting.</p>
 
 <h3>Reading is free</h3>
-<p>Each feed's human surfaces — changelog pages, latest snapshot, RSS, calendar — are free for personal use, research, and grounding humans or AI agents, with attribution (the feed's name and a link). Bulk redistribution or republication of these surfaces as a dataset is not permitted.</p>
+<p>Each feed's human surfaces — latest records, snapshots, RSS, calendar, and source links — are free for personal use, research, and grounding humans or AI agents, with attribution (the feed's name and a link). Bulk redistribution or republication of these surfaces as a dataset is not permitted.</p>
 
 <h3>Machine access is metered per feed</h3>
-<p>Structured APIs, MCP tool calls, and dated snapshot archives are sold by the feed that publishes them, priced per call with no subscription floor. Keys are not transferable; reselling raw access is not permitted. See each feed's terms (e.g. <a href="https://tariff.watch/terms">tariff.watch/terms</a>).</p>
+<p>During launch, feeds may issue free API keys while Stripe billing is verified. After launch, structured APIs, MCP tool calls, and dated snapshot archives are sold by the feed that publishes them: Pay as you go, Fixed rate - monthly, or Fixed rate - annual. Keys are not transferable; reselling raw access is not permitted. See each feed's terms (e.g. <a href="https://tariff.watch/terms">tariff.watch/terms</a>).</p>
 
 <h3>Commercial redistribution is licensed</h3>
 <p>Embedding a feed in a product you sell, redistributing records, or white-labeling requires a commercial license from netm8. Write to <a href="mailto:hello@netm8.com">hello@netm8.com</a> with what you are building — licenses are flat, fast, and per feed.</p>
 
 <h3>The disclaimer that applies everywhere</h3>
-<p>Feeds are changelogs of public records, not legal, customs, or financial advice. Verify against the cited source before compliance use.</p>`,
+<p>Feeds are source-linked context APIs, not legal, customs, medical, financial, or professional advice. Verify against the cited source before compliance use.</p>`,
 	);
 }
 
@@ -167,12 +263,12 @@ export function contactPage(): string {
 		"Contact — netm8",
 		"Contact netm8: corrections, commercial licensing, and new feed requests.",
 		`<h1>Contact</h1>
-<p class="lede">One inbox, read by the operator: <a href="mailto:hello@netm8.com">hello@netm8.com</a></p>
+<p class="hero-sub" style="margin-bottom:2rem">One inbox, read by the operator: <a href="mailto:hello@netm8.com">hello@netm8.com</a></p>
 <h3>Corrections</h3>
 <p>If a record looks wrong, send the record URL and the primary source that contradicts it. Corrections ship against the source, and the fix is itself a recorded change event.</p>
 <h3>Commercial licensing</h3>
 <p>Redistribution and embedding licenses per <a href="/licensing">licensing</a> — include the feed and what you are building.</p>
 <h3>New feeds</h3>
-<p>Suggest a government source you would pay to watch. The bar: primary documents, established reuse rights, and changes that cost someone money when missed.</p>`,
+<p>Suggest a source category you would pay to keep current. The bar: reliable source material, established reuse rights, a domain where stale context causes mistakes, and changes that cost someone money when missed.</p>`,
 	);
 }

@@ -3,7 +3,7 @@
  *
  * The sender domain is netm8.com (onboarded for Email Sending); tariff.watch
  * is a netm8 feed, so operational mail carries the imprint. The raw API key
- * is NEVER emailed — the email is a receipt plus the standing deletion offer.
+ * is NEVER emailed — the email is a receipt plus the deletion link.
  */
 
 const FROM = { email: "keys@netm8.com", name: "tariff.watch" };
@@ -35,9 +35,10 @@ For your security it is never sent by email — if you lost it, delete it below
 and create a new one.
 
 What you signed up for
-- Pay as you go: your first ${input.freeQuota} API calls are free — a month\n  of daily updates on us.
-- US$0.10 per API call after that, billed monthly by Stripe for actual usage.
-  $0 was charged today. Stripe emails your invoices. Cancel anytime.
+- Launch access is free while Stripe billing is verified.
+- After launch, Pay as you go keeps the first ${input.freeQuota} API calls free\n  via signup credit, then charges US$0.10 per API call.
+- Fixed rate - monthly and Fixed rate - annual remain available from the pricing
+  flow when billing mode is paid. Cancel anytime.
 
 Delete your key and data — anytime
 ${input.baseUrl}/account/delete
@@ -51,7 +52,7 @@ tariff.watch — a netm8 feed. Facts only, primary sources, immutable snapshots.
 Questions: reply to this email.`;
 	const html = `<p>Your tariff.watch API key was created and shown to you once in the browser. For your security it is never sent by email — if you lost it, delete it below and create a new one.</p>
 <p><strong>What you signed up for</strong><br>
-Pay as you go: your first ${input.freeQuota} API calls are free — a month of daily updates on us. After that, US$0.10 per API call, billed monthly by Stripe for actual usage. $0 was charged today. Stripe emails your invoices. Cancel anytime.</p>
+Launch access is free while Stripe billing is verified. After launch, Pay as you go keeps the first ${input.freeQuota} API calls free via signup credit, then charges US$0.10 per API call. Fixed rate - monthly and Fixed rate - annual remain available from the pricing flow when billing mode is paid. Cancel anytime.</p>
 <p><strong>Delete your key and data — anytime</strong><br>
 <a href="${input.baseUrl}/account/delete">${input.baseUrl}/account/delete</a><br>
 Enter this email address there and your key, usage records, and address are deleted immediately. Cancelling your subscription from any Stripe invoice email also deactivates the key.</p>

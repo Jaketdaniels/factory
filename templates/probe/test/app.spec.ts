@@ -26,7 +26,15 @@ describe("public routes", () => {
 		const res = await SELF.fetch("https://example.com/");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toContain("text/html");
-		expect(await res.text()).toContain("probe-template");
+		const html = await res.text();
+		expect(html).toContain("probe-template");
+		expect(html).toContain('role="tablist" aria-label="Pricing plans"');
+		expect(html).toContain("Pay as you go");
+		expect(html).toContain("Fixed rate - monthly");
+		expect(html).toContain("Fixed rate - annual");
+		expect(html).toContain("Launch access is free while Stripe billing is verified.");
+		expect(html).toContain('aria-label="Email for selected plan"');
+		expect(html).not.toContain('class="plan"');
 	});
 
 	it("reports health", async () => {

@@ -26,7 +26,7 @@ to the §122-sunset news window (drafts included in the sale).
 **What's included**:
 - tariff.watch domain (Cloudflare Registrar)
 - Standalone vendored repo (Worker, D1 schema + data, R2, tests green, CI)
-- Stripe blueprint: metered PAYG price + Standing $29/mo + billing meter (ids documented)
+- Stripe blueprint: Pay as you go metered price + fixed monthly + fixed annual + billing meter (ids documented)
 - Official MCP registry listing (io.github namespace transfers with repo ownership)
 - Email receipts/alerts pipeline (Cloudflare Email Service)
 - Operator runbook + 30 days of answer-anything support

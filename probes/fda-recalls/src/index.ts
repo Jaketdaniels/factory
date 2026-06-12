@@ -1,14 +1,20 @@
 import {
+	billingModeSchema,
+	type CheckoutPlan,
 	type CheckoutSessionCompleted,
+	checkoutPlanFromMetadata,
+	checkoutPlanSchema,
 	checkoutSessionCompletedSchema,
 	createApiKey,
 	createCheckoutSession,
+	createCreditGrant,
 	errorBody,
 	getStripeSecrets,
 	getWebhookSecret,
 	type MeteredVariables,
 	metered,
 	onApiError,
+	provisioningForCheckoutPlan,
 	revokeKeysForSubscription,
 	stripeEventSchema,
 	subscriptionDeletedSchema,
@@ -32,8 +38,13 @@ const changesQuerySchema = z.object({
 	limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 const adminEnvSchema = z.object({ ADMIN_TOKEN: z.string().min(16).optional() });
-const checkoutBodySchema = z.object({ email: z.string().email() });
+const checkoutBodySchema = z.object({ email: z.string().email(), plan: checkoutPlanSchema.default("payg") });
 const sessionIdSchema = z.object({ session_id: z.string().min(1) });
+const billingModeEnvSchema = z.object({ BILLING_MODE: billingModeSchema.default("paid") });
+
+function parseUrlEncodedBody(rawBody: ArrayBuffer): Record<string, string> {
+	return Object.fromEntries(new URLSearchParams(new TextDecoder().decode(rawBody)).entries());
+}
 
 /**
  * Idempotently reserve a completed Checkout Session (single insert — fully
@@ -41,11 +52,71 @@ const sessionIdSchema = z.object({ session_id: z.string().min(1) });
  * raw key is ever persisted.
  */
 async function reserveSession(env: Env, session: CheckoutSessionCompleted): Promise<void> {
+	const provisioning = provisioningForCheckoutPlan(checkoutPlanFromMetadata(session.metadata?.plan));
 	await env.DB.prepare(
-		"INSERT INTO provisioned_keys (checkout_session_id, email, stripe_customer_id, stripe_subscription_id) VALUES (?, ?, ?, ?) ON CONFLICT(checkout_session_id) DO NOTHING",
+		"INSERT INTO provisioned_keys (checkout_session_id, email, stripe_customer_id, stripe_subscription_id, plan, billing_interval) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(checkout_session_id) DO NOTHING",
 	)
-		.bind(session.id, session.customer_details?.email ?? null, session.customer ?? null, session.subscription ?? null)
+		.bind(
+			session.id,
+			session.customer_details?.email ?? null,
+			session.customer ?? null,
+			session.subscription ?? null,
+			provisioning.reservationPlan,
+			provisioning.billingInterval,
+		)
 		.run();
+}
+
+async function reserveFreeLaunchSession(env: Env, email: string, plan: CheckoutPlan): Promise<string> {
+	const sessionId = `free_${crypto.randomUUID()}`;
+	const provisioning = provisioningForCheckoutPlan(plan);
+	await env.DB.prepare(
+		"INSERT INTO provisioned_keys (checkout_session_id, email, stripe_customer_id, stripe_subscription_id, plan, billing_interval) VALUES (?, ?, NULL, NULL, ?, ?)",
+	)
+		.bind(sessionId, email, provisioning.reservationPlan, provisioning.billingInterval)
+		.run();
+	return sessionId;
+}
+
+function successUrl(env: Env, sessionId: string): string {
+	const url = new URL("/billing/success", env.APP_BASE_URL);
+	url.searchParams.set("session_id", sessionId);
+	return url.toString();
+}
+
+function checkoutInputForPlan(env: Env, email: string, plan: CheckoutPlan, secretKey: string) {
+	const base = {
+		secretKey,
+		successUrl: `${env.APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+		cancelUrl: `${env.APP_BASE_URL}/`,
+		customerEmail: email,
+	};
+	switch (plan) {
+		case "fixed_monthly":
+			return {
+				...base,
+				priceId: env.STRIPE_FIXED_MONTHLY_PRICE_ID,
+				extraLineItems: [{ priceId: env.STRIPE_FIXED_MONTHLY_METERED_PRICE_ID, metered: true }],
+				metadata: { plan },
+				submitNote: `Fixed rate - monthly: ${env.FIXED_MONTHLY_INCLUDED_CALLS} API calls included every month. Overage is US$0.10 per API call. Cancel anytime.`,
+			};
+		case "fixed_annual":
+			return {
+				...base,
+				priceId: env.STRIPE_FIXED_ANNUAL_PRICE_ID,
+				extraLineItems: [{ priceId: env.STRIPE_FIXED_ANNUAL_METERED_PRICE_ID, metered: true }],
+				metadata: { plan },
+				submitNote: `Fixed rate - annual: ${env.FIXED_ANNUAL_INCLUDED_CALLS} API calls included for the year at a better effective rate. Overage is US$0.10 per API call.`,
+			};
+		case "payg":
+			return {
+				...base,
+				priceId: env.STRIPE_PRICE_ID,
+				meteredPrice: true,
+				metadata: { plan },
+				submitNote: `Pay as you go: your first ${env.FREE_CALL_ALLOWANCE} API calls are free as signup credit. US$0.10 per API call after that. Cancel anytime.`,
+			};
+	}
 }
 
 const provisionedRowSchema = z.object({
@@ -54,6 +125,8 @@ const provisionedRowSchema = z.object({
 	stripe_subscription_id: z.string().nullable(),
 	claimed_at: z.string().nullable(),
 	revoked_at: z.string().nullable(),
+	plan: z.enum(["payg", "standing"]),
+	billing_interval: z.enum(["usage", "monthly", "annual"]),
 });
 
 /** The key reveal carries a secret: never cache, never leak the URL via referrer. */
@@ -140,16 +213,16 @@ ${entries}
 	})
 
 	.post("/billing/checkout", zValidator("json", checkoutBodySchema), async (c) => {
-		const { email } = c.req.valid("json");
+		const { email, plan } = c.req.valid("json");
+		const billing = billingModeEnvSchema.parse(c.env);
+		if (billing.BILLING_MODE === "free_launch") {
+			const sessionId = await reserveFreeLaunchSession(c.env, email, plan);
+			c.executionCtx.waitUntil(track(c.env.DB, "checkout_started", { plan, billing_mode: "free_launch" }));
+			return c.json({ url: successUrl(c.env, sessionId) });
+		}
 		const secrets = getStripeSecrets(c.env);
-		const session = await createCheckoutSession({
-			secretKey: secrets.STRIPE_SECRET_KEY,
-			priceId: c.env.STRIPE_PRICE_ID,
-			successUrl: `${c.env.APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-			cancelUrl: `${c.env.APP_BASE_URL}/`,
-			customerEmail: email,
-		});
-		c.executionCtx.waitUntil(track(c.env.DB, "checkout_started"));
+		const session = await createCheckoutSession(checkoutInputForPlan(c.env, email, plan, secrets.STRIPE_SECRET_KEY));
+		c.executionCtx.waitUntil(track(c.env.DB, "checkout_started", { plan, billing_mode: "paid" }));
 		return c.json({ url: session.url });
 	})
 
@@ -159,7 +232,7 @@ ${entries}
 		setSensitiveHeaders(c);
 		const { session_id } = c.req.valid("query");
 		const row = await c.env.DB.prepare(
-			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at FROM provisioned_keys WHERE checkout_session_id = ?",
+			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan, billing_interval FROM provisioned_keys WHERE checkout_session_id = ?",
 		)
 			.bind(session_id)
 			.first();
@@ -176,9 +249,13 @@ ${entries}
 		return c.html(successPage({ kind: "ready", sessionId: session_id }));
 	})
 
-	.post("/billing/claim", zValidator("form", sessionIdSchema), async (c) => {
+	.post("/billing/claim", async (c) => {
 		setSensitiveHeaders(c);
-		const { session_id } = c.req.valid("form");
+		const parsed = sessionIdSchema.safeParse(parseUrlEncodedBody(await c.req.arrayBuffer()));
+		if (!parsed.success) {
+			return c.json(parsed, 400);
+		}
+		const { session_id } = parsed.data;
 		// Atomic claim: exactly one concurrent request wins the conditional UPDATE.
 		const claim = await c.env.DB.prepare(
 			"UPDATE provisioned_keys SET claimed_at = datetime('now') WHERE checkout_session_id = ? AND claimed_at IS NULL AND revoked_at IS NULL",
@@ -187,7 +264,7 @@ ${entries}
 			.run();
 		if (claim.meta.changes === 0) {
 			const row = await c.env.DB.prepare(
-				"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at FROM provisioned_keys WHERE checkout_session_id = ?",
+				"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan, billing_interval FROM provisioned_keys WHERE checkout_session_id = ?",
 			)
 				.bind(session_id)
 				.first();
@@ -198,14 +275,14 @@ ${entries}
 			return c.html(successPage({ kind: lost.revoked_at !== null ? "revoked" : "claimed-before" }));
 		}
 		const row = await c.env.DB.prepare(
-			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at FROM provisioned_keys WHERE checkout_session_id = ?",
+			"SELECT email, stripe_customer_id, stripe_subscription_id, claimed_at, revoked_at, plan, billing_interval FROM provisioned_keys WHERE checkout_session_id = ?",
 		)
 			.bind(session_id)
 			.first();
 		const provisioned = provisionedRowSchema.parse(row);
 		try {
 			const created = await createApiKey(c.env.DB, {
-				plan: "pro",
+				plan: provisioned.plan === "standing" ? "standing" : "pro",
 				monthlyQuota: c.env.PRO_MONTHLY_QUOTA,
 				email: provisioned.email ?? undefined,
 				stripeCustomerId: provisioned.stripe_customer_id ?? undefined,
@@ -214,6 +291,25 @@ ${entries}
 			await c.env.DB.prepare("UPDATE provisioned_keys SET key_id = ? WHERE checkout_session_id = ?")
 				.bind(created.id, session_id)
 				.run();
+			if (
+				billingModeEnvSchema.parse(c.env).BILLING_MODE === "paid" &&
+				provisioned.plan === "payg" &&
+				provisioned.stripe_customer_id !== null
+			) {
+				const secrets = getStripeSecrets(c.env);
+				try {
+					await createCreditGrant({
+						secretKey: secrets.STRIPE_SECRET_KEY,
+						customerId: provisioned.stripe_customer_id,
+						amountCents: c.env.SIGNUP_CREDIT_CENTS,
+						currency: "usd",
+						name: `First ${c.env.FREE_CALL_ALLOWANCE} API calls free — recalls.netm8 signup credit`,
+						idempotencyKey: `signup-credit-${session_id}`,
+					});
+				} catch (err) {
+					console.error(JSON.stringify({ event: "signup_credit_failed", session: session_id, message: String(err) }));
+				}
+			}
 			c.executionCtx.waitUntil(track(c.env.DB, "key_claimed"));
 			// Rendered straight from memory — the raw key never touches storage.
 			return c.html(successPage({ kind: "revealed", rawKey: created.rawKey }));

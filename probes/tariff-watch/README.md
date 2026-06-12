@@ -45,8 +45,8 @@ rate limits.
 ### JSON API
 
 ```sh
-# Get a key: add a card at https://tariff.watch/#plans (Stripe Checkout,
-# $0 due today; your first 30 API calls are free, then US$0.10 per call).
+# Get a key: choose a plan at https://tariff.watch/#plans.
+# Launch access is free while Stripe billing is verified.
 # The key is shown once in the browser and never emailed.
 
 # Query structured changes
@@ -61,14 +61,22 @@ curl -X POST -H "Content-Type: application/json" \
 Response fields: `document_number`, `title`, `type`, `abstract`,
 `publication_date`, `agencies[]`, `program`, `legal_status`, `effective_on`,
 `comments_close_on`, `hearing_on`, `confidence`, and the primary-source `url`.
-Pay as you go via `POST /billing/checkout`: $0/month base; your first 30 API
-calls are free (a month of daily updates), then US$0.10 per call — billed
-monthly for actual usage (Stripe Billing Meters; no hard caps, cancel anytime).
+Launch API access is free while Stripe billing is verified. After launch, the
+pricing flow has three public offers:
 
-### Watchlists + Standing ($29/mo)
+- `Pay as you go`: first 30 API calls free via signup credit, then US$0.10
+  per call.
+- `Fixed rate - monthly`: $29/month, 500 calls/month included, then
+  US$0.10/call overage.
+- `Fixed rate - annual`: $290/year, 7,500 calls/year included, then
+  US$0.10/call overage.
 
-Standing includes 300 calls/month and watchlist alerts; checkout with
-`{"email":"...","plan":"standing"}`. Watchlists are keyed and never billed:
+### Watchlists + fixed-rate plans
+
+Fixed-rate keys include watchlist alerts. Use
+`{"email":"...","plan":"fixed_monthly"}` or
+`{"email":"...","plan":"fixed_annual"}` when `BILLING_MODE=paid`.
+Watchlists are keyed and never billed:
 
 ```sh
 curl -X POST -H "Authorization: Bearer <key>" -H "Content-Type: application/json" \
@@ -125,18 +133,28 @@ npm run deploy
 ### Configuration
 
 Vars (public, in [wrangler.jsonc](wrangler.jsonc)): `APP_BASE_URL`,
-`STRIPE_PRICE_ID`, `PRO_MONTHLY_QUOTA`, `FREE_CALL_ALLOWANCE`.
+`BILLING_MODE`, `STRIPE_PRICE_ID`, `STRIPE_FIXED_MONTHLY_PRICE_ID`,
+`STRIPE_FIXED_MONTHLY_METERED_PRICE_ID`, `STRIPE_FIXED_ANNUAL_PRICE_ID`,
+`STRIPE_FIXED_ANNUAL_METERED_PRICE_ID`, `PRO_MONTHLY_QUOTA`,
+`FREE_CALL_ALLOWANCE` + `SIGNUP_CREDIT_CENTS`, and the display counts
+`FIXED_MONTHLY_INCLUDED_CALLS` / `FIXED_ANNUAL_INCLUDED_CALLS`.
+
+`BILLING_MODE=free_launch` provisions keys without Stripe while billing is
+being verified. `BILLING_MODE=paid` sends the same plan ids through Stripe
+Checkout. In paid mode, the "first 30 calls free" offer is a US$3 promotional
+credit grant issued at key claim; every call still reports to the meter.
 
 Secrets (via `.dev.vars` locally, `wrangler secret put` in production):
 
 | Secret | Purpose |
 | --- | --- |
 | `ADMIN_TOKEN` | authorizes `POST /admin/ingest` (manual ingest trigger) |
-| `STRIPE_SECRET_KEY` | restricted (`rk_`) key scoped to Checkout Sessions + Billing meter events |
+| `STRIPE_SECRET_KEY` | restricted (`rk_`) key scoped to Checkout Sessions + Billing meter events + **Credit grants (write)** before switching `BILLING_MODE` to `paid` |
 | `STRIPE_WEBHOOK_SECRET` | signing secret for the `/webhooks/stripe` endpoint (events: `checkout.session.completed`, `customer.subscription.deleted`) |
 
-Until the two Stripe secrets are set, `/billing/checkout` returns a structured
-`missing_configuration` error and every other surface works normally.
+In `free_launch`, `/billing/checkout` works without Stripe secrets. In `paid`,
+missing Stripe secrets return a structured `missing_configuration` error and
+every other surface works normally.
 
 ## Status
 

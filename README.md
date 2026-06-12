@@ -42,8 +42,8 @@ curl https://tariff.watch/calendar.ics
 # Dated snapshots are immutable once their day passes (point-in-time grounding)
 curl https://tariff.watch/snapshot/2026-06-09.md
 
-# Get an API key: add a card at https://tariff.watch/#plans
-# ($0 due today; your first 30 API calls are free, then US$0.10 per call)
+# Get an API key: choose a plan at https://tariff.watch/#plans
+# Launch access is free while Stripe billing is verified.
 
 # Structured changes since a date
 curl -H "Authorization: Bearer <your-key>" \
@@ -59,9 +59,10 @@ where each result has `document_number`, `title`, `type`, `abstract`,
 `publication_date`, `agencies[]`, `program`, `legal_status`, `effective_on`,
 `comments_close_on`, `hearing_on`, `confidence`, and the primary-source `url`.
 Errors are structured JSON (`{ "error": { "code": "...", "message": "..." } }`);
-quota exhaustion on free keys is a `429 quota_exceeded`. Pay as you go is
-available from the landing page: your first 30 API calls are free (a month of
-daily updates), then US$0.10 per call, billed monthly. Cancel anytime.
+quota exhaustion on free keys is a `429 quota_exceeded`. Launch API access is
+free while Stripe billing is verified. After launch, plans are Pay as you go
+(first 30 calls free via signup credit, then US$0.10/call), Fixed rate -
+monthly (500 calls/month), and Fixed rate - annual (7,500 calls/year).
 
 Full product documentation: [probes/tariff-watch](probes/tariff-watch/README.md).
 

@@ -39,7 +39,7 @@ function claimRequest(sessionId: string): Request {
 	});
 }
 
-describe("standing tier", () => {
+describe("fixed-rate tiers", () => {
 	const server = setupServer();
 
 	beforeAll(() => {
@@ -53,30 +53,49 @@ describe("standing tier", () => {
 	});
 	beforeEach(clearTables);
 
-	it("creates a two-line-item checkout (flat + meter) tagged with the plan", async () => {
-		let body = "";
+	it("creates a free-launch reservation for the monthly fixed-rate plan", async () => {
+		let stripeCalled = false;
 		server.use(
-			http.post("https://api.stripe.com/v1/checkout/sessions", async ({ request }) => {
-				body = new TextDecoder().decode(await request.arrayBuffer());
+			http.post("https://api.stripe.com/v1/checkout/sessions", () => {
+				stripeCalled = true;
 				return HttpResponse.json({ id: "cs_standing_1", url: "https://checkout.stripe.com/c/cs_standing_1" });
 			}),
 		);
 		const res = await SELF.fetch("https://example.com/billing/checkout", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ email: "standing@example.com", plan: "standing" }),
+			body: JSON.stringify({ email: "standing@example.com", plan: "fixed_monthly" }),
 		});
 		expect(res.status).toBe(200);
-		const params = new URLSearchParams(body);
-		expect(params.get("line_items[0][price]")).toBe(env.STRIPE_STANDING_PRICE_ID);
-		expect(params.get("line_items[0][quantity]")).toBe("1");
-		expect(params.get("line_items[1][price]")).toBe(env.STRIPE_PRICE_ID);
-		expect(params.get("line_items[1][quantity]")).toBeNull();
-		expect(params.get("metadata[plan]")).toBe("standing");
-		expect(params.get("custom_text[submit][message]")).toContain("$29/month");
+		const body = (await res.json()) as { url: string };
+		expect(body.url).toMatch(/^https:\/\/tariff\.watch\/billing\/success\?session_id=free_/);
+		expect(stripeCalled).toBe(false);
+		const row = await env.DB.prepare(
+			"SELECT plan, billing_interval FROM provisioned_keys WHERE checkout_session_id = ?",
+		)
+			.bind(new URL(body.url).searchParams.get("session_id"))
+			.first<{ plan: string; billing_interval: string }>();
+		expect(row).toEqual({ plan: "standing", billing_interval: "monthly" });
 	});
 
-	it("provisions a standing key from the plan metadata on the webhook", async () => {
+	it("provisions an annual fixed-rate key from the selected free-launch plan", async () => {
+		const checkout = await SELF.fetch("https://example.com/billing/checkout", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ email: "annual@example.com", plan: "fixed_annual" }),
+		});
+		const { url } = (await checkout.json()) as { url: string };
+		const sessionId = new URL(url).searchParams.get("session_id") ?? "";
+		expect((await SELF.fetch(claimRequest(sessionId))).status).toBe(200);
+		const key = await env.DB.prepare(
+			"SELECT COALESCE(tier, plan) AS plan FROM api_keys WHERE email = 'annual@example.com'",
+		).first<{
+			plan: string;
+		}>();
+		expect(key?.plan).toBe("standing");
+	});
+
+	it("provisions a standing key from legacy plan metadata on the webhook", async () => {
 		const event = completedSessionEvent("cs_standing_2", "sub_standing_2") as {
 			data: { object: Record<string, unknown> };
 		};
@@ -98,7 +117,7 @@ describe("standing tier", () => {
 		expect(key?.plan).toBe("standing");
 	});
 
-	it("bills standing keys only beyond the monthly inclusion", async () => {
+	it("reports every fixed-rate call to the meter — the inclusion lives in the price tiers", async () => {
 		let meterEvents = 0;
 		server.use(
 			http.post("https://api.stripe.com/v1/billing/meter_events", () => {
@@ -106,49 +125,27 @@ describe("standing tier", () => {
 				return HttpResponse.json({ identifier: `me_${meterEvents}` });
 			}),
 		);
-		const { rawKey, id } = await createApiKey(env.DB, {
+		const { rawKey } = await createApiKey(env.DB, {
 			plan: "standing",
 			monthlyQuota: 1000000,
 			email: "standing@example.com",
 			stripeCustomerId: "cus_standing_1",
 			stripeSubscriptionId: "sub_standing_1",
 		});
-		// Pre-seed this month's usage to one call under the inclusion.
-		const included = env.STANDING_INCLUDED_CALLS;
-		const seed = Array.from({ length: included - 1 }, () =>
-			env.DB.prepare("INSERT INTO usage_events (id, key_id, route, qty) VALUES (?, ?, 'changes', 1)").bind(
-				crypto.randomUUID(),
-				id,
-			),
-		);
-		for (let i = 0; i < seed.length; i += 50) {
-			await env.DB.batch(seed.slice(i, i + 50));
+		for (let i = 0; i < 2; i++) {
+			const res = await SELF.fetch(
+				new Request("https://example.com/v1/changes?limit=1", { headers: { authorization: `Bearer ${rawKey}` } }),
+			);
+			expect(res.status).toBe(200);
 		}
-
-		// Call #included stays covered by the flat fee...
-		expect(
-			(
-				await SELF.fetch(
-					new Request("https://example.com/v1/changes?limit=1", { headers: { authorization: `Bearer ${rawKey}` } }),
-				)
-			).status,
-		).toBe(200);
 		await new Promise((resolve) => setTimeout(resolve, 30));
-		expect(meterEvents).toBe(0);
-		// ...and call #included+1 reports as overage.
-		expect(
-			(
-				await SELF.fetch(
-					new Request("https://example.com/v1/changes?limit=1", { headers: { authorization: `Bearer ${rawKey}` } }),
-				)
-			).status,
-		).toBe(200);
-		await new Promise((resolve) => setTimeout(resolve, 30));
-		expect(meterEvents).toBe(1);
+		// The first 500/month are free via the graduated tier, so the meter
+		// must still see them — suppressing here would double-discount.
+		expect(meterEvents).toBe(2);
 	});
 });
 
-describe("lifetime free allowance", () => {
+describe("pay-as-you-go metering", () => {
 	const server = setupServer();
 
 	beforeAll(() => {
@@ -162,7 +159,7 @@ describe("lifetime free allowance", () => {
 	});
 	beforeEach(clearTables);
 
-	it("reports meter events only after the first FREE_CALL_ALLOWANCE calls", async () => {
+	it("reports every call to the meter — the free 30 are a signup credit, not suppressed events", async () => {
 		let meterEvents = 0;
 		server.use(
 			http.post("https://api.stripe.com/v1/billing/meter_events", () => {
@@ -177,9 +174,7 @@ describe("lifetime free allowance", () => {
 			stripeCustomerId: "cus_meter_1",
 			stripeSubscriptionId: "sub_meter_1",
 		});
-		const allowance = env.FREE_CALL_ALLOWANCE;
-		expect(allowance).toBe(30);
-		for (let i = 0; i < allowance + 2; i++) {
+		for (let i = 0; i < 5; i++) {
 			const res = await SELF.fetch(
 				new Request("https://example.com/v1/changes?limit=1", {
 					headers: { authorization: `Bearer ${rawKey}` },
@@ -189,7 +184,7 @@ describe("lifetime free allowance", () => {
 		}
 		// waitUntil-delivered meter reports flush asynchronously.
 		await new Promise((resolve) => setTimeout(resolve, 50));
-		expect(meterEvents).toBe(2);
+		expect(meterEvents).toBe(5);
 	});
 });
 
@@ -245,11 +240,11 @@ describe("checkout", () => {
 		server.close();
 	});
 
-	it("creates a Stripe checkout session and returns its url", async () => {
-		let checkoutBody = "";
+	it("creates a free-launch reservation and returns its success url", async () => {
+		let stripeCalled = false;
 		server.use(
-			http.post("https://api.stripe.com/v1/checkout/sessions", async ({ request }) => {
-				checkoutBody = new TextDecoder().decode(await request.arrayBuffer());
+			http.post("https://api.stripe.com/v1/checkout/sessions", () => {
+				stripeCalled = true;
 				return HttpResponse.json({ id: "cs_1", url: "https://checkout.stripe.com/c/cs_1" });
 			}),
 		);
@@ -260,12 +255,9 @@ describe("checkout", () => {
 			body: JSON.stringify({ email: "buyer@example.com" }),
 		});
 		expect(res.status).toBe(200);
-		await expect(res.json()).resolves.toEqual({ url: "https://checkout.stripe.com/c/cs_1" });
-		const params = new URLSearchParams(checkoutBody);
-		expect(params.get("custom_text[submit][message]")).toContain("Your first 30 API calls are free");
-		expect(params.get("custom_text[submit][message]")).toContain("US$0.10 per API call after that");
-		expect(params.get("custom_text[submit][message]")).toContain("Cancel anytime.");
-		expect(checkoutBody).not.toContain("US%242");
+		const body = (await res.json()) as { url: string };
+		expect(body.url).toMatch(/^https:\/\/tariff\.watch\/billing\/success\?session_id=free_/);
+		expect(stripeCalled).toBe(false);
 	});
 
 	it("rejects invalid emails", async () => {
@@ -276,10 +268,47 @@ describe("checkout", () => {
 		});
 		expect(res.status).toBe(400);
 	});
+
+	it("rejects unknown pricing plans", async () => {
+		const res = await SELF.fetch("https://example.com/billing/checkout", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ email: "buyer@example.com", plan: "enterprise" }),
+		});
+		expect(res.status).toBe(400);
+	});
 });
 
 describe("stripe webhook + key claim", () => {
-	beforeEach(clearTables);
+	const server = setupServer();
+	let grantBodies: string[] = [];
+	let grantIdempotencyKeys: string[] = [];
+
+	beforeAll(() => {
+		server.listen({ onUnhandledRequest: "error" });
+	});
+	afterEach(() => {
+		server.resetHandlers();
+	});
+	afterAll(() => {
+		server.close();
+	});
+	beforeEach(async () => {
+		await clearTables();
+		grantBodies = [];
+		grantIdempotencyKeys = [];
+		// PAYG claims issue the US$3 signup credit grant.
+		server.use(
+			http.post("https://api.stripe.com/v1/billing/credit_grants", async ({ request }) => {
+				grantBodies.push(new TextDecoder().decode(await request.arrayBuffer()));
+				grantIdempotencyKeys.push(request.headers.get("idempotency-key") ?? "");
+				return HttpResponse.json({ id: `credgr_${grantBodies.length}` });
+			}),
+			http.post("https://api.stripe.com/v1/billing/meter_events", () =>
+				HttpResponse.json({ identifier: "me_key_claim_flow" }),
+			),
+		);
+	});
 
 	it("rejects unsigned and badly signed events", async () => {
 		const unsigned = await SELF.fetch("https://example.com/webhooks/stripe", {
@@ -327,6 +356,11 @@ describe("stripe webhook + key claim", () => {
 		expect(revealedHtml).toMatch(/fk_[A-Za-z0-9_-]{32}/);
 		expect(revealedHtml).toContain("only once");
 
+		// Launch mode is free and must not create Stripe-side credit grants.
+		// Paid mode keeps the credit-grant path ready for the later switch.
+		expect(grantBodies).toHaveLength(0);
+		expect(grantIdempotencyKeys).toHaveLength(0);
+
 		const again = await SELF.fetch(claimRequest("cs_flow"));
 		expect(await again.text()).toContain("already been shown");
 		const successAgain = await SELF.fetch("https://example.com/billing/success?session_id=cs_flow");
@@ -339,6 +373,18 @@ describe("stripe webhook + key claim", () => {
 			monthly_quota: 1000000,
 			stripe_subscription_id: "sub_test_1",
 		});
+	});
+
+	it("a failed credit grant never blocks the key reveal", async () => {
+		server.use(
+			http.post("https://api.stripe.com/v1/billing/credit_grants", () =>
+				HttpResponse.json({ error: { message: "insufficient permissions" } }, { status: 401 }),
+			),
+		);
+		await deliverWebhook(completedSessionEvent("cs_nogrant"));
+		const revealed = await SELF.fetch(claimRequest("cs_nogrant"));
+		expect(revealed.status).toBe(200);
+		expect(await revealed.text()).toMatch(/fk_[A-Za-z0-9_-]{32}/);
 	});
 
 	it("concurrent claims reveal the key to at most one caller", async () => {

@@ -12,9 +12,9 @@ Strategy and evidence live in [STRATEGY.md](../STRATEGY.md) and
 1. **Slices run in order, one at a time.** Reordering requires a dated note
    in the decision log. Starting slice N+1 before N's "done when" is checked
    is drift.
-2. **Pricing is locked** by the evidence rules: US$0.10/call + 30 free; the
-   $29 Standing tier ships inside the watchlists slice, not before; never
-   compete on price.
+2. **Pricing is locked** by the evidence rules: free launch while Stripe is
+   verified, then Pay as you go (US$0.10/call + 30-call signup credit), Fixed
+   rate - monthly, and Fixed rate - annual. Never compete on price.
 3. **Dials over opinions.** Decisions read from D1 `analytics_events` /
    `usage_events` and Stripe — weekly, same query, logged below.
 4. **Every probe carries pre-committed kill criteria before deploy.**
@@ -34,18 +34,15 @@ tools, RSS/calendar/snapshots, agent setup docs.
 
 ### S1 — Reprice production to US$0.10/call — ✅ done 2026-06-11
 
-Shipped via abc8349: live graduated price `price_1Th3caRtNOtWEuKv0aut9dUz`
-(30 @ $0, then US$0.10/call) on the production meter; prior prices archived;
-copy swept across landing, llms.txt, receipt email, and READMEs; tests assert
-the old rate is absent.
+Superseded on 2026-06-12 by the staged pricing surface: launch access is free
+while Stripe billing is verified; after launch the public offers are Pay as you
+go, Fixed rate - monthly, and Fixed rate - annual.
 
-- Ship: new graduated metered price on the live meter (tier 1: 30 @ $0;
-  tier 2: $0.10/call), archive the old price, `STRIPE_PRICE_ID` var swap,
-  landing pricing card + quickstart copy, llms.txt, receipt email copy, both
-  READMEs, tests that assert the displayed rate.
-- Done when: live `POST /billing/checkout` session resolves to the new
-  price; the landing, llms.txt, and receipt email all state $0.10/call and
-  30 free; old price is inactive in Stripe.
+- Ship: current pricing flow + quickstart copy, llms.txt, receipt email copy,
+  both READMEs, and tests that assert the displayed rate.
+- Done when: live checkout reflects the active launch/paid mode, the landing,
+  llms.txt, and receipt email all state the current pricing, and old public
+  plan names are absent.
 
 ### S2 — Freshness: 4×/day ingest with visible timestamps
 
@@ -100,19 +97,19 @@ the old rate is absent.
   referrer dials.
 - Done when: both posts published; first-week dial review logged.
 
-### S8 — Watchlists + alerts + the $29 Standing tier
+### S8 — Watchlists + alerts + fixed-rate plans
 
 The revenue floor. One slice, shipped whole:
 
 - Ship: watchlist schema (per-key program/agency/chapter subscriptions),
   watchlist CRUD on a small keyed settings page, daily alert evaluation in
   the cron, email delivery (existing Email Service binding) and HMAC-signed
-  webhooks, the `Standing` flat price in Stripe ($29/mo incl. ~300 calls,
-  PAYG overage beyond — flat + graduated on the same meter), landing tier
-  card, README/llms.txt, receipt email update, full test coverage of the
-  alert evaluator and webhook signatures.
+  webhooks, fixed-rate monthly and annual offers in Stripe (flat fee plus
+  graduated metered overage on the same meter), landing pricing tabs,
+  README/llms.txt, receipt email update, full test coverage of the alert
+  evaluator and webhook signatures.
 - Done when: a real watchlist on a real key receives a real alert from a
-  production ingest run; a Standing checkout completes live; both tiers
+  production ingest run; fixed-rate checkout completes live; all three offers
   visible on the landing.
 
 ### S9 — Kill-date review (2026-07-25)
@@ -127,8 +124,8 @@ The revenue floor. One slice, shipped whole:
 
 ### S10 — The netm8.com site, whole
 
-One Worker, four pages, shipped as a single slice (copy already approved):
-home/catalog ("Changelogs of government rules." + method block + catalog),
+One Worker, four pages, shipped as a single slice: home/catalog for the
+umbrella mission ("current context APIs" + tailored feed network),
 `/standards` (the published feed contract: **FeedItemV1** plus the six
 publishing rules — see
 [research/brightdata-proposal-review.md](research/brightdata-proposal-review.md)),
@@ -220,5 +217,7 @@ end to end — the churn loop proven, not just the build loop.
 | 2026-06-11 | FeedItemV1 adopted as feed contract; license gate strengthened; API-first collection | brightdata-proposal-review.md |
 | 2026-06-11 | Plan restructured: one complete vertical slice per task (S1–S15); repricing to $0.10/call is S1 since production still charges the launch rate | this document |
 | 2026-06-11 | Pricing corrected to a lifetime allowance: first 30 calls free ever (not per month), then $0.10/call flat — Stripe period tiers reset monthly, so the allowance is enforced app-side | JD decision; S1 redone on price_1Th6ra… |
+| 2026-06-12 | Billing mechanics corrected: meter-event suppression replaced with Stripe-native constructs — every call reports to the meter; the first-30-free offer is a US$3 promotional credit grant (scope: metered prices) issued idempotently at key claim, and the fixed monthly inclusion moved into a graduated metered price (price_1ThNg8…, tiers reset monthly natively). Restricted keys need the Credit grants write scope (currently missing — grants log-and-skip until added). | JD decision; Stripe credit-grants docs |
 | 2026-06-12 | Probe #2 live: fda-recalls at recalls.netm8.com (openFDA enforcement → FeedItemV1, R2 raw archive, 4×/day cron). Scaffold-to-live same day via new-probe v2. First dial row: 34 events ingested on first run, visits 0, keys 0 (pre-launch). Stripe meter/price creation is the one remaining operator step before billing activates. Kill date 2026-07-31. | docs/probe-scoring.md; live verification |
 | 2026-06-12 | First weekly dial review (S1–S8 shipped; pre-launch): visits_7d 251, keys 3, paying 0, watchlists 0, checkouts_started_7d 7, calls_7d 1. Read: traffic is mostly own verification; no launch posts yet (gated to the §122 sunset window). No action — dials become meaningful after S7 posting day. | docs/dials/dial-pack.sql run 2026-06-11 UTC |
+| 2026-06-12 | Pricing surface renamed and staged: public offers are Pay as you go, Fixed rate - monthly, and Fixed rate - annual. Live Workers run `BILLING_MODE=free_launch` while Stripe is verified, so checkout provisions keys without Stripe side effects. Paid mode keeps credit grants for the first 30 payg calls and fixed-rate metered overage ready behind the same plan ids. netm8.com now carries distinct umbrella branding from probe sites. | JD feedback; Stripe credit-grants and usage-tier docs |

@@ -10,8 +10,10 @@ describe("keyCreatedEmail", () => {
 		});
 
 		expect(email.subject).toBe("Your tariff.watch API key is active");
-		expect(email.text).toContain("your first 30 API calls are free");
-		expect(email.text).toContain("month\n  of daily updates");
+		expect(email.text).toContain("Pay as you go keeps the first 30 API calls free");
+		expect(email.text).toContain("Launch access is free");
+		expect(email.text).toContain("Fixed rate - monthly");
+		expect(email.text).toContain("Fixed rate - annual");
 		expect(email.text).toContain("US$0.10 per API call");
 		expect(email.text).not.toContain("each month are free");
 		expect(email.text).toContain("Cancel anytime");

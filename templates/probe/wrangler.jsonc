@@ -26,8 +26,19 @@
 		// STRIPE_WEBHOOK_SECRET) go in `.dev.vars` locally and
 		// `wrangler secret put <NAME>` in production — never here.
 		"APP_BASE_URL": "http://localhost:8787",
+		// free_launch provisions keys without Stripe while billing is being
+		// verified. Switch to paid after Stripe prices/secrets are confirmed.
+		"BILLING_MODE": "free_launch",
 		"STRIPE_PRICE_ID": "price_REPLACE_ME",
-		"PRO_MONTHLY_QUOTA": 10000
+		"STRIPE_FIXED_MONTHLY_PRICE_ID": "price_REPLACE_ME",
+		"STRIPE_FIXED_MONTHLY_METERED_PRICE_ID": "price_REPLACE_ME",
+		"STRIPE_FIXED_ANNUAL_PRICE_ID": "price_REPLACE_ME",
+		"STRIPE_FIXED_ANNUAL_METERED_PRICE_ID": "price_REPLACE_ME",
+		"PRO_MONTHLY_QUOTA": 10000,
+		"FREE_CALL_ALLOWANCE": 30,
+		"SIGNUP_CREDIT_CENTS": 300,
+		"FIXED_MONTHLY_INCLUDED_CALLS": 500,
+		"FIXED_ANNUAL_INCLUDED_CALLS": 7500
 	}
 	// Enable when the probe needs a daily job (snapshots, digests, alerts):
 	// "triggers": { "crons": ["0 6 * * *"] }

@@ -49,7 +49,7 @@ describe("public surfaces", () => {
 		expect(html).toContain("Steel Derivatives: Section 232 Inclusion");
 	});
 
-	it("renders the deadline strip, both pricing doors, and real API URLs", async () => {
+	it("renders the deadline strip, tabbed pricing flow, and real API URLs", async () => {
 		// Far-future dates keep the deadline assertions stable over time.
 		await env.DB.prepare(
 			"INSERT INTO tariff_documents (document_number, title, doc_type, abstract, publication_date, url, agencies, source_query, program, legal_status, effective_on, comments_close_on, source_type, source_id, confidence) VALUES ('2099-00001', 'Future Modification of Duty Rates', 'Rule', NULL, '2099-01-02', 'https://www.federalregister.gov/d/2099-00001', '[]', 'trade-agencies', 'section_232', 'final', '2099-03-01', '2099-02-01', 'federal_register', '2099-00001', 'medium')",
@@ -58,11 +58,17 @@ describe("public surfaces", () => {
 		expect(html).toContain("Upcoming deadlines");
 		expect(html).toContain("2099-03-01");
 		expect(html).toContain("Comments due");
-		expect(html).toContain('id="pro"');
+		expect(html).toContain('role="tablist" aria-label="Pricing plans"');
+		expect(html).toContain("Pay as you go");
+		expect(html).toContain("Fixed rate - monthly");
+		expect(html).toContain("Fixed rate - annual");
+		expect(html).toContain("Launch access is free while Stripe billing is verified.");
+		expect(html).toContain("500 API calls included every month");
+		expect(html).toContain("7,500 API calls included for the year");
 		expect(html).toContain("/billing/checkout");
-		expect(html).toContain('Your first <span class="datum">30</span> API calls are free');
 		expect(html).toContain("US$0.10 per API call");
 		expect(html).toContain("cancel anytime");
+		expect(html).not.toContain("Go Standing");
 		expect(html).not.toContain("US$2");
 		expect(html).toContain("mcpServers");
 		expect(html).toContain("claude mcp add");

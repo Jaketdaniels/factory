@@ -2,13 +2,19 @@ import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 describe("netm8.com", () => {
-	it("serves all four pages with the catalog and method", async () => {
+	it("serves the homepage with hero, benefits, feed links, and CTAs", async () => {
 		const home = await SELF.fetch("https://example.com/");
 		expect(home.status).toBe(200);
 		const html = await home.text();
-		expect(html).toContain("Changelogs of government rules.");
-		expect(html).toContain("https://tariff.watch");
-		expect(html).toContain("FeedItemV1");
+		expect(html).toContain("Current specialist context for your stack");
+		expect(html).toContain("Why netm8");
+		expect(html).toContain("Source-linked records");
+		expect(html).toContain("tariff.watch");
+		expect(html).toContain("recalls.netm8.com");
+		expect(html).toContain("Start free");
+		expect(html).toContain("Get your API key");
+		expect(html).toContain('class="hero"');
+		expect(html).not.toContain("Changelogs of government rules");
 
 		for (const path of ["/standards", "/licensing", "/contact"]) {
 			const res = await SELF.fetch(`https://example.com${path}`);
@@ -35,6 +41,8 @@ describe("netm8.com", () => {
 		expect((await SELF.fetch("https://example.com/nope")).status).toBe(404);
 		const llms = await SELF.fetch("https://example.com/llms.txt");
 		expect(llms.status).toBe(200);
-		expect(await llms.text()).toContain("feed-item-v1.schema.json");
+		const text = await llms.text();
+		expect(text).toContain("Current context APIs for specialist domains");
+		expect(text).toContain("feed-item-v1.schema.json");
 	});
 });
