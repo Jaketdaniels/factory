@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>netm8 hero explorations</title>
+<style>
+:root {
+	color-scheme: light;
+	--bg: #f4f2ed; --surface: #faf9f6; --border: #e0dcd4; --border-hi: #cbc5ba;
+	--text: #1e1b16; --muted: #7a7266; --muted-hi: #958c7e;
+	--accent: #0b756f; --accent-hi: #085e59; --accent-glint: #e6f4ef;
+	--warm: #b8863b; --warm-hi: #d49c44;
+	--mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); max-width: 72rem; margin: 0 auto; padding: 2rem 2rem 5rem; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+.page-title { font-size: 0.95rem; font-weight: 650; margin: 0 0 1.5rem; }
+
+/* ── Hero card chrome (shared) ── */
+.variant { position: relative; border-radius: 16px; overflow: hidden; margin-bottom: 2rem; padding: 3.5rem 3rem 3.75rem; isolation: isolate; border: 1px solid var(--border); background: var(--bg); }
+.tag { position: absolute; top: 1.1rem; left: 1.4rem; font-family: var(--mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-hi); z-index: 2; }
+.kicker { font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; color: var(--accent); font-weight: 600; letter-spacing: 0.06em; margin: 1rem 0 1rem; display: inline-flex; align-items: center; gap: 0.4rem; }
+.kicker::before { content: ""; display: inline-block; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--accent); }
+h1 { font-size: 2.4rem; line-height: 1.12; letter-spacing: -0.015em; margin: 0; max-width: 36rem; text-wrap: balance; }
+.hero-sub { font-size: 1.1rem; line-height: 1.5; color: var(--muted-hi); max-width: 34rem; margin: 1rem 0 1.5rem; }
+.hero-cta { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 0.7rem 1.3rem; font-weight: 600; font-size: 0.9rem; text-decoration: none; }
+.content { position: relative; z-index: 1; }
+
+/* ── Shared layers ── */
+.bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.grain { position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E"); background-size: 200px 200px; opacity: 0.55; mix-blend-mode: multiply; }
+.mesh { position: absolute; inset: 0; }
+
+/* A — gradient mesh + grain (refined baseline) */
+.v-a .mesh { background:
+	radial-gradient(900px 440px at 86% -10%, rgba(11,117,111,0.16), transparent 64%),
+	radial-gradient(680px 380px at 4% 110%, rgba(184,134,59,0.11), transparent 70%),
+	radial-gradient(540px 320px at 58% 52%, rgba(11,117,111,0.05), transparent 72%),
+	radial-gradient(440px 280px at 98% 86%, rgba(212,156,68,0.08), transparent 70%); }
+
+/* B — blueprint grid */
+.v-b .mesh { background:
+	radial-gradient(820px 420px at 88% -6%, rgba(11,117,111,0.10), transparent 64%),
+	radial-gradient(560px 340px at 6% 108%, rgba(184,134,59,0.07), transparent 70%); }
+.v-b .grid { position: absolute; inset: 0;
+	background-image:
+		linear-gradient(rgba(11,117,111,0.17) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(11,117,111,0.17) 1px, transparent 1px);
+	background-size: 38px 38px; background-position: 19px 12px;
+	-webkit-mask-image: radial-gradient(78% 120% at 82% 28%, #000 22%, transparent 74%);
+	mask-image: radial-gradient(78% 120% at 82% 28%, #000 22%, transparent 74%); }
+.v-b .mark { position: absolute; font-family: var(--mono); color: var(--accent); opacity: 0.55; font-size: 0.8rem; line-height: 1; }
+.v-b .mark.gold { color: var(--warm); }
+
+/* C — dot matrix */
+.v-c .mesh { background:
+	radial-gradient(820px 420px at 85% -8%, rgba(11,117,111,0.09), transparent 64%),
+	radial-gradient(560px 340px at 8% 112%, rgba(184,134,59,0.07), transparent 70%); }
+.v-c .dots { position: absolute; inset: 0;
+	background-image: radial-gradient(rgba(11,117,111,0.38) 1.2px, transparent 1.2px);
+	background-size: 21px 21px; background-position: 8px 6px;
+	-webkit-mask-image: radial-gradient(72% 130% at 86% 42%, #000 16%, transparent 70%);
+	mask-image: radial-gradient(72% 130% at 86% 42%, #000 16%, transparent 70%); }
+.v-c .dots2 { position: absolute; inset: 0;
+	background-image: radial-gradient(rgba(184,134,59,0.30) 1.6px, transparent 1.6px);
+	background-size: 63px 63px; background-position: 30px 28px;
+	-webkit-mask-image: radial-gradient(60% 110% at 88% 50%, #000 12%, transparent 64%);
+	mask-image: radial-gradient(60% 110% at 88% 50%, #000 12%, transparent 64%); }
+
+/* D — contour waves */
+.v-d .mesh { background:
+	radial-gradient(860px 420px at 88% -8%, rgba(11,117,111,0.11), transparent 64%),
+	radial-gradient(600px 360px at 4% 112%, rgba(184,134,59,0.08), transparent 70%); }
+.v-d svg { position: absolute; inset: 0; width: 100%; height: 100%;
+	-webkit-mask-image: linear-gradient(90deg, transparent 2%, rgba(0,0,0,0.45) 30%, #000 58%);
+	mask-image: linear-gradient(90deg, transparent 2%, rgba(0,0,0,0.45) 30%, #000 58%); }
+
+/* E — editorial stripes */
+.v-e .mesh { background:
+	radial-gradient(820px 420px at 88% -8%, rgba(11,117,111,0.10), transparent 64%),
+	radial-gradient(560px 340px at 6% 110%, rgba(184,134,59,0.07), transparent 70%); }
+.v-e .stripes { position: absolute; inset: 0;
+	background: repeating-linear-gradient(112deg, rgba(11,117,111,0.10) 0 1.5px, transparent 1.5px 15px);
+	-webkit-mask-image: radial-gradient(75% 140% at 86% 36%, #000 18%, transparent 72%);
+	mask-image: radial-gradient(75% 140% at 86% 36%, #000 18%, transparent 72%); }
+.v-e .stripe-accent { position: absolute; inset: 0;
+	background: repeating-linear-gradient(112deg, transparent 0 119px, rgba(184,134,59,0.22) 119px 121px, transparent 121px 240px);
+	-webkit-mask-image: radial-gradient(70% 130% at 88% 40%, #000 14%, transparent 68%);
+	mask-image: radial-gradient(70% 130% at 88% 40%, #000 14%, transparent 68%); }
+
+/* F — dark + mesh glow */
+.v-f { background: linear-gradient(132deg, #0d201d 0%, #11302b 48%, #0c2422 100%); border-color: #1d3a35; }
+.v-f .mesh { background:
+	radial-gradient(780px 400px at 84% -12%, rgba(38,166,154,0.22), transparent 62%),
+	radial-gradient(560px 340px at 2% 118%, rgba(212,156,68,0.13), transparent 68%),
+	radial-gradient(420px 260px at 96% 90%, rgba(38,166,154,0.08), transparent 70%); }
+.v-f .grid { position: absolute; inset: 0;
+	background-image:
+		linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+	background-size: 44px 44px;
+	-webkit-mask-image: radial-gradient(80% 130% at 80% 30%, #000 20%, transparent 78%);
+	mask-image: radial-gradient(80% 130% at 80% 30%, #000 20%, transparent 78%); }
+.v-f .stream { position: absolute; top: 0; bottom: 0; width: 1px; }
+.v-f .stream.s1 { left: 60%; background: linear-gradient(180deg, transparent 6%, rgba(56,193,178,0.55) 38%, transparent 86%); }
+.v-f .stream.s2 { left: 74%; background: linear-gradient(180deg, transparent 16%, rgba(212,156,68,0.45) 56%, transparent 94%); }
+.v-f .stream.s3 { left: 88%; background: linear-gradient(180deg, transparent 2%, rgba(56,193,178,0.4) 28%, transparent 78%); }
+.v-f .stream i { position: absolute; left: -1.5px; width: 4px; height: 4px; border-radius: 50%; }
+.v-f .stream.s1 i { top: 38%; background: #38c1b2; box-shadow: 0 0 8px rgba(56,193,178,0.9); }
+.v-f .stream.s2 i { top: 56%; background: #d49c44; box-shadow: 0 0 8px rgba(212,156,68,0.9); }
+.v-f .stream.s3 i { top: 28%; background: #38c1b2; box-shadow: 0 0 8px rgba(56,193,178,0.9); }
+.v-f .grain { opacity: 0.35; mix-blend-mode: overlay; }
+.v-f .tag { color: rgba(255,255,255,0.45); }
+.v-f .kicker { color: #4fd1c0; }
+.v-f .kicker::before { background: #4fd1c0; }
+.v-f h1 { color: #f6f4ef; }
+.v-f .hero-sub { color: rgba(246,244,239,0.66); }
+.v-f .hero-cta { background: var(--warm-hi); color: #1b1607; }
+</style>
+</head>
+<body>
+
+<p class="page-title">netm8 hero backgrounds — brand patterns over the live hero copy</p>
+
+<!-- A -->
+<section class="variant v-a">
+	<span class="tag">A — Gradient mesh + grain</span>
+	<div class="bg"><div class="mesh"></div><div class="grain"></div></div>
+	<div class="content">
+		<p class="kicker">For AI agents that answer about what's new</p>
+		<h1>Current specialist context for your stack.</h1>
+		<p class="hero-sub">Government registers, regulatory filings, and agency sources — delivered as clean, source-linked APIs. Your agents get fresh facts without building scrapers.</p>
+		<a class="hero-cta" href="#">Start free →</a>
+	</div>
+</section>
+
+<!-- B -->
+<section class="variant v-b">
+	<span class="tag">B — Blueprint grid</span>
+	<div class="bg">
+		<div class="mesh"></div>
+		<div class="grid"></div>
+		<span class="mark" style="top: 23%; right: 14%;">+</span>
+		<span class="mark gold" style="top: 56%; right: 28%;">+</span>
+		<span class="mark" style="top: 74%; right: 8%;">+</span>
+		<div class="grain"></div>
+	</div>
+	<div class="content">
+		<p class="kicker">For AI agents that answer about what's new</p>
+		<h1>Current specialist context for your stack.</h1>
+		<p class="hero-sub">Government registers, regulatory filings, and agency sources — delivered as clean, source-linked APIs. Your agents get fresh facts without building scrapers.</p>
+		<a class="hero-cta" href="#">Start free →</a>
+	</div>
+</section>
+
+<!-- C -->
+<section class="variant v-c">
+	<span class="tag">C — Dot matrix</span>
+	<div class="bg"><div class="mesh"></div><div class="dots"></div><div class="dots2"></div><div class="grain"></div></div>
+	<div class="content">
+		<p class="kicker">For AI agents that answer about what's new</p>
+		<h1>Current specialist context for your stack.</h1>
+		<p class="hero-sub">Government registers, regulatory filings, and agency sources — delivered as clean, source-linked APIs. Your agents get fresh facts without building scrapers.</p>
+		<a class="hero-cta" href="#">Start free →</a>
+	</div>
+</section>
+
+<!-- D -->
+<section class="variant v-d">
+	<span class="tag">D — Contour waves</span>
+	<div class="bg">
+		<div class="mesh"></div>
+		<svg aria-hidden="true" viewBox="0 0 1100 420" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+			<path d="M0 280 C 220 200, 380 320, 560 252 S 900 160, 1100 224" stroke="#0b756f" stroke-opacity="0.34" stroke-width="1.6"/>
+			<path d="M0 330 C 260 252, 420 352, 640 292 S 940 204, 1100 272" stroke="#b8863b" stroke-opacity="0.3" stroke-width="1.1"/>
+			<path d="M0 244 C 200 172, 420 282, 620 222 S 920 124, 1100 182" stroke="#0b756f" stroke-opacity="0.2" stroke-width="0.8"/>
+			<path d="M0 376 C 300 316, 500 396, 760 336 S 1000 276, 1100 314" stroke="#0b756f" stroke-opacity="0.13" stroke-width="0.6"/>
+			<path d="M0 330 C 260 252, 420 352, 640 292 S 940 204, 1100 272 L 1100 420 L 0 420 Z" fill="#0b756f" fill-opacity="0.025"/>
+			<circle cx="560" cy="252" r="3" fill="#0b756f" fill-opacity="0.5"/>
+			<circle cx="852" cy="182" r="2.6" fill="#0b756f" fill-opacity="0.45"/>
+			<circle cx="640" cy="292" r="2.6" fill="#b8863b" fill-opacity="0.5"/>
+			<circle cx="1020" cy="246" r="2.2" fill="#b8863b" fill-opacity="0.4"/>
+		</svg>
+		<div class="grain"></div>
+	</div>
+	<div class="content">
+		<p class="kicker">For AI agents that answer about what's new</p>
+		<h1>Current specialist context for your stack.</h1>
+		<p class="hero-sub">Government registers, regulatory filings, and agency sources — delivered as clean, source-linked APIs. Your agents get fresh facts without building scrapers.</p>
+		<a class="hero-cta" href="#">Start free →</a>
+	</div>
+</section>
+
+<!-- E -->
+<section class="variant v-e">
+	<span class="tag">E — Editorial stripes</span>
+	<div class="bg"><div class="mesh"></div><div class="stripes"></div><div class="stripe-accent"></div><div class="grain"></div></div>
+	<div class="content">
+		<p class="kicker">For AI agents that answer about what's new</p>
+		<h1>Current specialist context for your stack.</h1>
+		<p class="hero-sub">Government registers, regulatory filings, and agency sources — delivered as clean, source-linked APIs. Your agents get fresh facts without building scrapers.</p>
+		<a class="hero-cta" href="#">Start free →</a>
+	</div>
+</section>
+
+<!-- F -->
+<section class="variant v-f">
+	<span class="tag">F — Dark mesh + data streams</span>
+	<div class="bg">
+		<div class="mesh"></div>
+		<div class="grid"></div>
+		<div class="stream s1"><i></i></div>
+		<div class="stream s2"><i></i></div>
+		<div class="stream s3"><i></i></div>
+		<div class="grain"></div>
+	</div>
+	<div class="content">
+		<p class="kicker">For AI agents that answer about what's new</p>
+		<h1>Current specialist context for your stack.</h1>
+		<p class="hero-sub">Government registers, regulatory filings, and agency sources — delivered as clean, source-linked APIs. Your agents get fresh facts without building scrapers.</p>
+		<a class="hero-cta" href="#">Start free →</a>
+	</div>
+</section>
+
+</body>
+</html>

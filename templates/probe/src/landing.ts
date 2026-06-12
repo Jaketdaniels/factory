@@ -1,40 +1,44 @@
 /** Server-rendered pages. Plain HTML, no client framework — probes replace these. */
+import { brandCss } from "@factory/core";
 
 const PRODUCT_NAME = "probe-template";
 
 function page(title: string, body: string): string {
 	return `<!doctype html>
-<html lang="en">
+<html lang="en" data-brand="netm8-feed">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
 <style>
-:root { color-scheme: light dark; }
-body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 3rem auto; padding: 0 1rem; line-height: 1.6; }
-code, pre { background: rgba(127, 127, 127, 0.15); border-radius: 4px; padding: 0.1rem 0.3rem; }
+${brandCss("netm8-feed")}
+* { box-sizing: border-box; }
+body { font-family: var(--font-body); background: var(--canvas); color: var(--text); max-width: 42rem; margin: 3rem auto; padding: 0 1rem; line-height: 1.6; }
+a { color: var(--link); text-underline-offset: 3px; }
+a:hover { color: var(--link-hover); }
+code, pre { font-family: var(--font-code); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 0.1rem 0.3rem; }
 pre { padding: 0.75rem; overflow-x: auto; }
 button, input { font: inherit; }
-button { padding: 0.5rem 1rem; cursor: pointer; transition: opacity 0.15s; }
+button { background: var(--accent); color: var(--accent-contrast); border: 0; border-radius: var(--radius-control); padding: 0.5rem 1rem; cursor: pointer; transition: opacity 0.15s; }
 button:disabled { cursor: default; opacity: 0.6; }
-input { padding: 0.48rem 0.6rem; min-width: 0; transition: border-color 0.15s; }
-input:focus { border-color: var(--accent, currentColor); outline: none; }
-.pricing-flow { border: 1px solid rgba(127, 127, 127, 0.25); border-radius: 8px; overflow: hidden; }
-.pricing-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid rgba(127, 127, 127, 0.25); }
-.pricing-tabs [role="tab"] { border: 0; border-right: 1px solid rgba(127, 127, 127, 0.2); background: transparent; padding: 0.75rem 0.5rem; }
+input { background: var(--canvas); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 0.48rem 0.6rem; min-width: 0; transition: border-color 0.15s; }
+input:focus { border-color: var(--accent); outline: none; }
+.pricing-flow { border: 1px solid var(--border); border-radius: var(--radius-panel); overflow: hidden; background: var(--surface); }
+.pricing-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--border); }
+.pricing-tabs [role="tab"] { color: var(--muted); border: 0; border-right: 1px solid var(--border); border-radius: 0; background: transparent; padding: 0.75rem 0.5rem; }
 .pricing-tabs [role="tab"]:last-child { border-right: 0; }
-.pricing-tabs [aria-selected="true"] { background: rgba(127, 127, 127, 0.15); font-weight: 700; }
+.pricing-tabs [aria-selected="true"] { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); font-weight: 700; }
 .pricing-panel { padding: 1rem; }
 .pricing-panel[hidden] { display: none; }
 .pricing-price { margin: 0 0 0.35rem; font-weight: 700; }
-.pricing-detail { margin: 0; color: color-mix(in srgb, currentColor 72%, transparent); }
-.checkout-step { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 1rem; border-top: 1px solid rgba(127, 127, 127, 0.25); }
+.pricing-detail { margin: 0; color: var(--muted); }
+.checkout-step { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 1rem; border-top: 1px solid var(--border); }
 .checkout-step label { width: 100%; font-weight: 700; }
-.checkout-note { width: 100%; margin: 0.25rem 0 0; font-size: 0.9rem; }
-.error { color: #b91c1c; }
+.checkout-note { width: 100%; margin: 0.25rem 0 0; color: var(--muted); font-size: 0.9rem; }
+.error { color: var(--badge-alert); }
 @media (max-width: 520px) {
   .pricing-tabs { grid-template-columns: 1fr; }
-  .pricing-tabs [role="tab"] { border-right: 0; border-bottom: 1px solid rgba(127, 127, 127, 0.2); }
+  .pricing-tabs [role="tab"] { border-right: 0; border-bottom: 1px solid var(--border); }
   .pricing-tabs [role="tab"]:last-child { border-bottom: 0; }
 }
 </style>

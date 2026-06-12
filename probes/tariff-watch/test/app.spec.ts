@@ -47,6 +47,12 @@ describe("public surfaces", () => {
 		const html = await res.text();
 		expect(html).toContain("tariff.watch");
 		expect(html).toContain("Steel Derivatives: Section 232 Inclusion");
+		expect(html).toContain('data-brand="netm8-feed"');
+		expect(html).toContain("Tier 3 - brand overlay: netm8-feed");
+		expect(html).toContain("color-scheme: dark;");
+		expect(html).toContain("--badge-alert: var(--brand-badge-alert);");
+		expect(html).not.toContain("--bg:");
+		expect(html).not.toContain("var(--bg)");
 	});
 
 	it("renders the deadline strip, tabbed pricing flow, and real API URLs", async () => {

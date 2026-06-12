@@ -12,6 +12,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@factory/core": "*",
 		"hono": "^4.11.9"
 	}
 }

@@ -28,6 +28,12 @@ describe("public routes", () => {
 		expect(res.headers.get("content-type")).toContain("text/html");
 		const html = await res.text();
 		expect(html).toContain("probe-template");
+		expect(html).toContain('data-brand="netm8-feed"');
+		expect(html).toContain("Tier 3 - brand overlay: netm8-feed");
+		expect(html).toContain("color-scheme: dark;");
+		expect(html).toContain("--surface: var(--brand-surface);");
+		expect(html).not.toContain("--bg:");
+		expect(html).not.toContain("var(--bg)");
 		expect(html).toContain('role="tablist" aria-label="Pricing plans"');
 		expect(html).toContain("Pay as you go");
 		expect(html).toContain("Fixed rate - monthly");

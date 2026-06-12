@@ -14,6 +14,15 @@ describe("netm8.com", () => {
 		expect(html).toContain("Start free");
 		expect(html).toContain("Get your API key");
 		expect(html).toContain('class="hero"');
+		expect(html).toContain('data-brand="netm8-parent"');
+		expect(html).toContain("Tier 1 - primitives");
+		expect(html).toContain("Tier 2 - semantic tokens");
+		expect(html).toContain("Tier 3 - brand overlay: netm8-parent");
+		expect(html).toContain("color-scheme: light;");
+		expect(html).toContain("--surface: var(--brand-surface);");
+		expect(html).toContain("--datum-fresh: var(--brand-datum-fresh);");
+		expect(html).not.toContain("--bg:");
+		expect(html).not.toContain("var(--bg)");
 		expect(html).not.toContain("Changelogs of government rules");
 
 		for (const path of ["/standards", "/licensing", "/contact"]) {

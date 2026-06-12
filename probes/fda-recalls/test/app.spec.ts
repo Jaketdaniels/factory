@@ -42,6 +42,12 @@ describe("public routes", () => {
 		const html = await res.text();
 		expect(html).toContain("structured change event");
 		expect(html).toContain("F-0001-2026");
+		expect(html).toContain('data-brand="netm8-feed"');
+		expect(html).toContain("Tier 3 - brand overlay: netm8-feed");
+		expect(html).toContain("color-scheme: dark;");
+		expect(html).toContain("--badge-alert: var(--brand-badge-alert);");
+		expect(html).not.toContain("--bg:");
+		expect(html).not.toContain("var(--bg)");
 		expect(html).toContain('role="tablist" aria-label="Pricing plans"');
 		expect(html).toContain("Pay as you go");
 		expect(html).toContain("Fixed rate - monthly");

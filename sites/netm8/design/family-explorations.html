@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>netm8 family explorations — umbrella on the child design system</title>
+<style>
+/* Tokens lifted verbatim from probes/tariff-watch/src/landing.ts */
+:root {
+	--ink-bg: #131210; --ink-surface: #1b1916; --ink-border: #2c2822;
+	--ink-text: #eae6de; --ink-muted: #a59c8d;
+	--accent: #d2a44c; --accent-hi: #e5c078;
+	--good: #8fb284; --bad: #c4806f; --doctype: #9db3c8; --program: #9fc0ae;
+	--live: #57b5a8;
+	--day-bg: #f4f2ed; --day-surface: #faf9f6; --day-border: #ddd8ce;
+	--day-text: #1e1b16; --day-muted: #7a7266;
+	--day-accent: #9c7027; --day-good: #5e7d54; --day-bad: #a8584a; --day-doctype: #56708a; --day-program: #4f7a64;
+	--mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #eceae3; color: #1e1b16; margin: 0 auto; max-width: 80rem; padding: 2rem 1.5rem 5rem; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+.page-title { font-size: 0.95rem; font-weight: 650; margin: 0 0 1.5rem; }
+.variant { position: relative; border-radius: 16px; overflow: hidden; margin-bottom: 2.5rem; isolation: isolate; border: 1px solid #ddd8ce; }
+.tag { position: absolute; top: 1rem; right: 1.4rem; font-family: var(--mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; z-index: 5; }
+.inner { position: relative; z-index: 1; max-width: 52rem; margin: 0 auto; padding: 2.25rem 1.5rem 3.5rem; }
+
+/* ── shared skeleton (child components, palette via custom props) ── */
+.fam { background: var(--f-bg); color: var(--f-text); }
+.fam .tag { color: var(--f-muted); }
+.fam .site { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.75rem; }
+.fam .wordmark { font-family: var(--mono); font-weight: 600; font-size: 1.05rem; color: var(--f-text); text-decoration: none; }
+.fam .wordmark span { color: var(--f-accent); }
+.fam nav { display: flex; gap: 1.1rem; flex-wrap: wrap; }
+.fam nav a { color: var(--f-muted); text-decoration: none; font-size: 0.85rem; }
+.fam h1 { font-size: 2.3rem; line-height: 1.12; letter-spacing: 0; margin: 0 0 1.1rem; text-wrap: balance; font-weight: 700; }
+.fam .lede { font-size: 1.05rem; max-width: 60ch; margin: 0; }
+.fam .meta-links { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 1.25rem 0 0; font-size: 0.9rem; }
+.fam .meta-link { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--f-muted); text-decoration: none; }
+.fam .meta-sep { width: 1px; height: 1.05rem; background: var(--f-border); }
+.fam .datum { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.fam .checked { color: var(--f-muted); }
+.fam .checked .datum { color: var(--f-text); }
+.fam h2 { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; letter-spacing: 0; text-transform: uppercase; color: var(--f-muted); margin: 3rem 0 0.4rem; }
+.fam .badge { display: inline-block; font-family: var(--mono); font-size: 0.72rem; border: 1px solid var(--f-border); border-radius: 4px; padding: 0.05rem 0.4rem; color: var(--f-muted); white-space: nowrap; }
+.fam .badge.proposed { color: var(--f-accent); border-color: color-mix(in srgb, var(--f-accent) 40%, transparent); }
+.fam .badge.effective { color: var(--f-good); border-color: color-mix(in srgb, var(--f-good) 40%, transparent); }
+.fam .badge.alert { color: var(--f-bad); border-color: color-mix(in srgb, var(--f-bad) 40%, transparent); }
+.fam .badge.doctype { color: var(--f-doctype); border-color: color-mix(in srgb, var(--f-doctype) 35%, transparent); }
+.fam .t-program { color: var(--f-program); }
+.fam .search { position: relative; margin: 1.9rem 0 0; }
+.fam .search svg { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--f-muted); pointer-events: none; }
+.fam .search input { width: 100%; height: 2.85rem; font-family: var(--mono); font-size: 0.85rem; background: var(--f-surface); color: var(--f-text); border: 1px solid var(--f-border); border-radius: 8px; padding: 0 4rem 0 2.4rem; }
+.fam .search input::placeholder { color: var(--f-muted); }
+.fam .search kbd { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: 0.64rem; color: var(--f-muted); border: 1px solid var(--f-border); border-radius: 4px; padding: 0.12rem 0.4rem; }
+/* feed index rows */
+.fam .feed { display: flex; gap: 1.1rem; align-items: baseline; padding: 0.7rem 0; border-top: 1px solid var(--f-border); font-size: 0.92rem; }
+.fam .feed:last-of-type { border-bottom: 1px solid var(--f-border); }
+.fam .feed .name { font-family: var(--mono); font-weight: 600; color: var(--f-text); text-decoration: none; flex: none; }
+.fam .feed .name span { color: var(--f-accent); }
+.fam .feed .src { color: var(--f-muted); font-size: 0.82rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fam .feed .datum { font-size: 0.8rem; color: var(--f-muted); flex: none; }
+.fam .feed .datum.fresh { color: var(--f-accent); }
+.fam .feed .live-dot { width: 0.42rem; height: 0.42rem; border-radius: 50%; background: var(--live); flex: none; align-self: center; }
+.fam .feed.soon { opacity: 0.5; }
+.fam .feed.soon .live-dot { background: var(--f-border); }
+/* latest-changes rows (child .doc pattern) */
+.fam .doc { padding: 0.85rem 0; border-top: 1px solid var(--f-border); }
+.fam .doc:last-of-type { border-bottom: 1px solid var(--f-border); }
+.fam .doc .title { color: var(--f-text); text-decoration: none; font-size: 0.97rem; }
+.fam .doc .meta { font-family: var(--mono); font-size: 0.78rem; color: var(--f-muted); margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: baseline; }
+.fam .doc .meta .datum { color: var(--f-accent); }
+.fam .doc .meta a { color: var(--f-muted); text-decoration: underline; text-underline-offset: 3px; }
+.fam .sec-line { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--f-border); padding-bottom: 0.4rem; margin-bottom: 0; }
+.fam .sec-line h2 { margin: 3rem 0 0; }
+.fam .sec-line .more { font-family: var(--mono); font-size: 0.74rem; color: var(--f-muted); text-decoration: none; align-self: flex-end; }
+.fam footer { margin-top: 3rem; border-top: 1px solid var(--f-border); padding-top: 1rem; font-size: 0.8rem; color: var(--f-muted); }
+.fam footer .imprint { font-family: var(--mono); font-size: 0.72rem; }
+.fam footer a { color: var(--f-accent); text-decoration: none; }
+
+/* E — ink (child palette verbatim) */
+.v-e { --f-bg: var(--ink-bg); --f-surface: var(--ink-surface); --f-border: var(--ink-border); --f-text: var(--ink-text); --f-muted: var(--ink-muted); --f-accent: var(--accent); --f-good: var(--good); --f-bad: var(--bad); --f-doctype: var(--doctype); --f-program: var(--program); border-color: #2c2822; }
+/* F — day edition (same skeleton, parchment palette) */
+.v-f { --f-bg: var(--day-bg); --f-surface: var(--day-surface); --f-border: var(--day-border); --f-text: var(--day-text); --f-muted: var(--day-muted); --f-accent: var(--day-accent); --f-good: var(--day-good); --f-bad: var(--day-bad); --f-doctype: var(--day-doctype); --f-program: var(--day-program); }
+
+@media (max-width: 720px) {
+	body { padding: 1rem 0.75rem 3rem; }
+	.inner { padding: 1.6rem 1.1rem 2.4rem; }
+	.tag { display: none; }
+	.fam h1 { font-size: 1.85rem; }
+	.fam .search kbd { display: none; }
+	.fam .feed { flex-wrap: wrap; gap: 0.35rem 0.9rem; }
+	.fam .feed .src { flex-basis: 100%; order: 5; }
+	.fam .doc .meta { gap: 0.45rem; }
+	.fam footer { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<p class="page-title">netm8 umbrella rebuilt on the tariff.watch / recalls design system — one publication, parent = front page</p>
+
+<!-- ════ E — INK (family dark) ════ -->
+<section class="variant fam v-e">
+	<span class="tag">E — Ink · family system</span>
+	<div class="inner">
+		<div class="site">
+			<a class="wordmark" href="#">net<span>m8</span></a>
+			<nav><a href="#">feeds</a><a href="#">docs</a><a href="#">llms.txt</a><a href="#">pricing</a></nav>
+		</div>
+
+		<h1>Current specialist context for AI agents</h1>
+		<p class="lede">Official registers and primary sources, read daily and recorded as structured change events — legal status, effective dates, provenance. Humans get changelogs; agents get immutable snapshots, feeds, and JSON APIs.</p>
+		<div class="meta-links">
+			<a class="meta-link" href="#"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>Get an API key</a>
+			<span class="meta-sep"></span>
+			<a class="meta-link" href="#"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>MCP endpoint</a>
+			<span class="meta-sep"></span>
+			<span class="checked">Last checked <span class="datum">2026-06-12 14:11 UTC</span></span>
+		</div>
+
+		<div class="search">
+			<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+			<input placeholder='search the feeds — try "Section 301" or "listeria"'>
+			<kbd>⌘K</kbd>
+		</div>
+
+		<h2>Live feeds</h2>
+		<div class="feed">
+			<span class="live-dot"></span>
+			<a class="name" href="#">tariff<span>.watch</span></a>
+			<span class="src">US trade actions — federalregister.gov</span>
+			<span class="datum">1,041 records</span>
+			<span class="datum fresh">checked 9 min ago</span>
+			<span class="badge">public domain</span>
+		</div>
+		<div class="feed">
+			<span class="live-dot"></span>
+			<a class="name" href="#">recalls<span>.netm8</span></a>
+			<span class="src">FDA enforcement reports — fda.gov</span>
+			<span class="datum">243 records</span>
+			<span class="datum fresh">checked 14 min ago</span>
+			<span class="badge">public domain</span>
+		</div>
+		<div class="feed soon">
+			<span class="live-dot"></span>
+			<span class="name">eu-sanctions</span>
+			<span class="src">consolidated sanctions — eur-lex.europa.eu</span>
+			<span class="datum">in build</span>
+			<span class="datum"></span>
+			<span class="badge">scoping</span>
+		</div>
+
+		<div class="sec-line">
+			<h2>Latest across the feeds</h2>
+			<a class="more" href="#">all changes →</a>
+		</div>
+		<div class="doc">
+			<a class="title" href="#">Section 301 Review: Solar Manufacturing Equipment Exclusions; Request for Comments</a>
+			<div class="meta"><span class="datum">2026-06-12</span><span class="badge doctype">Notice</span><span class="badge proposed">comment period</span><span class="t-program">Section 301</span><span>USTR</span><span>· tariff<b style="color:var(--f-accent)">.watch</b></span><a href="#">source</a></div>
+		</div>
+		<div class="doc">
+			<a class="title" href="#">Sunrise Farms frozen spinach — Listeria monocytogenes; 14 states</a>
+			<div class="meta"><span class="datum">2026-06-12</span><span class="badge alert">Class I</span><span class="badge">ongoing</span><span>FDA</span><span>· recalls<b style="color:var(--f-accent)">.netm8</b></span><a href="#">source</a></div>
+		</div>
+		<div class="doc">
+			<a class="title" href="#">Modification of Section 232 Steel Tariff-Rate Quota for the United Kingdom</a>
+			<div class="meta"><span class="datum">2026-06-12</span><span class="badge doctype">Final</span><span class="badge effective">effective 2026-06-15</span><span class="t-program">Section 232</span><span>CBP</span><span>· tariff<b style="color:var(--f-accent)">.watch</b></span><a href="#">source</a></div>
+		</div>
+		<div class="doc">
+			<a class="title" href="#">Aluminum Extrusions From Vietnam: Preliminary AD/CVD Determination</a>
+			<div class="meta"><span class="datum">2026-06-12</span><span class="badge doctype">Notice</span><span class="badge proposed">preliminary</span><span class="t-program">AD/CVD</span><span>Commerce</span><span>· tariff<b style="color:var(--f-accent)">.watch</b></span><a href="#">source</a></div>
+		</div>
+
+		<footer>
+			<p>Every record carries its primary-source URL. Daily immutable snapshots since 2026-03.</p>
+			<p class="imprint">netm8 — facts only, primary sources, immutable snapshots · <a href="#">terms</a> · <a href="#">status</a></p>
+		</footer>
+	</div>
+</section>
+
+<!-- ════ F — DAY EDITION (same skeleton, light) ════ -->
+<section class="variant fam v-f">
+	<span class="tag">F — Day edition · same system, light</span>
+	<div class="inner">
+		<div class="site">
+			<a class="wordmark" href="#">net<span>m8</span></a>
+			<nav><a href="#">feeds</a><a href="#">docs</a><a href="#">llms.txt</a><a href="#">pricing</a></nav>
+		</div>
+
+		<h1>Current specialist context for AI agents</h1>
+		<p class="lede">Official registers and primary sources, read daily and recorded as structured change events — legal status, effective dates, provenance. Humans get changelogs; agents get immutable snapshots, feeds, and JSON APIs.</p>
+		<div class="meta-links">
+			<a class="meta-link" href="#"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>Get an API key</a>
+			<span class="meta-sep"></span>
+			<a class="meta-link" href="#"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>MCP endpoint</a>
+			<span class="meta-sep"></span>
+			<span class="checked">Last checked <span class="datum">2026-06-12 14:11 UTC</span></span>
+		</div>
+
+		<div class="search">
+			<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+			<input placeholder='search the feeds — try "Section 301" or "listeria"'>
+			<kbd>⌘K</kbd>
+		</div>
+
+		<h2>Live feeds</h2>
+		<div class="feed">
+			<span class="live-dot"></span>
+			<a class="name" href="#">tariff<span>.watch</span></a>
+			<span class="src">US trade actions — federalregister.gov</span>
+			<span class="datum">1,041 records</span>
+			<span class="datum fresh">checked 9 min ago</span>
+			<span class="badge">public domain</span>
+		</div>
+		<div class="feed">
+			<span class="live-dot"></span>
+			<a class="name" href="#">recalls<span>.netm8</span></a>
+			<span class="src">FDA enforcement reports — fda.gov</span>
+			<span class="datum">243 records</span>
+			<span class="datum fresh">checked 14 min ago</span>
+			<span class="badge">public domain</span>
+		</div>
+		<div class="feed soon">
+			<span class="live-dot"></span>
+			<span class="name">eu-sanctions</span>
+			<span class="src">consolidated sanctions — eur-lex.europa.eu</span>
+			<span class="datum">in build</span>
+			<span class="datum"></span>
+			<span class="badge">scoping</span>
+		</div>
+
+		<div class="sec-line">
+			<h2>Latest across the feeds</h2>
+			<a class="more" href="#">all changes →</a>
+		</div>
+		<div class="doc">
+			<a class="title" href="#">Section 301 Review: Solar Manufacturing Equipment Exclusions; Request for Comments</a>
+			<div class="meta"><span class="datum">2026-06-12</span><span class="badge doctype">Notice</span><span class="badge proposed">comment period</span><span class="t-program">Section 301</span><span>USTR</span><span>· tariff<b style="color:var(--f-accent)">.watch</b></span><a href="#">source</a></div>
+		</div>
+		<div class="doc">
+			<a class="title" href="#">Sunrise Farms frozen spinach — Listeria monocytogenes; 14 states</a>
+			<div class="meta"><span class="datum">2026-06-12</span><span class="badge alert">Class I</span><span class="badge">ongoing</span><span>FDA</span><span>· recalls<b style="color:var(--f-accent)">.netm8</b></span><a href="#">source</a></div>
+		</div>
+		<div class="doc">
+			<a class="title" href="#">Modification of Section 232 Steel Tariff-Rate Quota for the United Kingdom</a>
+			<div class="meta"><span class="datum">2026-06-12</span><span class="badge doctype">Final</span><span class="badge effective">effective 2026-06-15</span><span class="t-program">Section 232</span><span>CBP</span><span>· tariff<b style="color:var(--f-accent)">.watch</b></span><a href="#">source</a></div>
+		</div>
+		<div class="doc">
+			<a class="title" href="#">Aluminum Extrusions From Vietnam: Preliminary AD/CVD Determination</a>
+			<div class="meta"><span class="datum">2026-06-12</span><span class="badge doctype">Notice</span><span class="badge proposed">preliminary</span><span class="t-program">AD/CVD</span><span>Commerce</span><span>· tariff<b style="color:var(--f-accent)">.watch</b></span><a href="#">source</a></div>
+		</div>
+
+		<footer>
+			<p>Every record carries its primary-source URL. Daily immutable snapshots since 2026-03.</p>
+			<p class="imprint">netm8 — facts only, primary sources, immutable snapshots · <a href="#">terms</a> · <a href="#">status</a></p>
+		</footer>
+	</div>
+</section>
+
+</body>
+</html>

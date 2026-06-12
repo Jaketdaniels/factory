@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>netm8 conglomerate explorations — parent authority over a uniform fleet</title>
+<style>
+:root {
+	/* child product tokens — fixed, factory output */
+	--ink: #131210; --ink-border: #2c2822; --ink-text: #eae6de; --ink-muted: #a59c8d; --gold: #d2a44c;
+	/* parent tokens */
+	--teal: #0b756f; --teal-deep: #085e59; --teal-lift: #4fd1c0;
+	--mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #e7e4dc; color: #1e1b16; margin: 0 auto; max-width: 80rem; padding: 2rem 1.5rem 5rem; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+.page-title { font-size: 0.95rem; font-weight: 650; margin: 0 0 1.5rem; }
+.variant { position: relative; border-radius: 16px; overflow: hidden; margin-bottom: 2.5rem; isolation: isolate; border: 1px solid #d6d1c6; }
+.tag { position: absolute; top: 1.1rem; right: 1.4rem; font-family: var(--mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; z-index: 5; }
+.inner { position: relative; z-index: 1; max-width: 62rem; margin: 0 auto; padding: 1.8rem 2.5rem 3.5rem; }
+.grain { position: absolute; inset: 0; z-index: 0; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E"); background-size: 200px 200px; opacity: 0.45; mix-blend-mode: multiply; }
+
+/* ── the product module: every feed, identical (factory output) ── */
+.module { position: relative; background: var(--ink); border: 1px solid var(--ink-border); border-radius: 10px; padding: 1.05rem 1.2rem 0.9rem; }
+.module .dot { position: absolute; top: 1.05rem; right: 1.1rem; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--teal-lift); box-shadow: 0 0 0 3px rgba(79,209,192,0.18); }
+.module .wm { font-family: var(--mono); font-weight: 600; font-size: 0.98rem; color: var(--ink-text); text-decoration: none; }
+.module .wm span { color: var(--gold); }
+.module .src { font-size: 0.74rem; color: var(--ink-muted); margin: 0.1rem 0 0; }
+.module .stats { display: flex; gap: 1.1rem; margin-top: 0.8rem; font-family: var(--mono); font-size: 0.7rem; color: var(--ink-muted); }
+.module .stats b { color: var(--gold); font-weight: 600; }
+.module .imprint { margin-top: 0.75rem; padding-top: 0.55rem; border-top: 1px solid var(--ink-border); font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-muted); }
+.module .imprint b { color: var(--gold); font-weight: 600; }
+.module.build { background: transparent; border-style: dashed; }
+.module.build .wm, .module.build .stats b { color: inherit; }
+.module.build .dot { background: transparent; box-shadow: none; border: 1px dashed currentColor; opacity: 0.4; }
+
+/* ════ G — THE HOLDING (light institutional) ════ */
+.v-g { background: #f1efe9; }
+.v-g .tag { color: #958c7e; }
+.v-g .site { display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; padding: 0.4rem 0 1.1rem; border-bottom: 1px solid #d9d4c9; }
+.v-g .wordmark { font-family: var(--mono); font-weight: 700; font-size: 1.15rem; color: #1e1b16; text-decoration: none; }
+.v-g .wordmark span { color: var(--teal); }
+.v-g .site nav { display: flex; gap: 1.4rem; }
+.v-g .site nav a { color: #7a7266; text-decoration: none; font-size: 0.85rem; font-weight: 500; }
+.v-g .role { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--teal); margin: 3rem 0 1rem; }
+.v-g h1 { font-size: 3.3rem; line-height: 1.06; letter-spacing: -0.028em; font-weight: 700; margin: 0 0 1rem; max-width: 46rem; text-wrap: balance; }
+.v-g .lede { font-size: 1.1rem; color: #5c554a; max-width: 44rem; margin: 0 0 2.6rem; }
+.v-g .lede b { color: #1e1b16; font-weight: 600; }
+.v-g .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #d9d4c9; border-bottom: 1px solid #d9d4c9; margin-bottom: 3rem; }
+.v-g .stat { padding: 1.15rem 1.4rem 1.1rem; border-left: 1px solid #d9d4c9; }
+.v-g .stat:first-child { border-left: none; padding-left: 0.2rem; }
+.v-g .stat .n { font-family: var(--mono); font-size: 1.9rem; font-weight: 600; color: var(--teal-deep); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.v-g .stat .l { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: #958c7e; margin-top: 0.2rem; }
+.v-g h2 { font-family: var(--mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #7a7266; margin: 0 0 1rem; display: flex; align-items: baseline; justify-content: space-between; }
+.v-g h2 .count { color: var(--teal); }
+.v-g .fleet { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 3rem; }
+.v-g .module.build { border-color: #c4beb1; color: #958c7e; }
+.v-g .sys { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem 2.5rem; border-top: 1px solid #d9d4c9; padding-top: 1.4rem; }
+.v-g .sys .row { display: flex; gap: 0.8rem; align-items: baseline; font-size: 0.9rem; color: #5c554a; }
+.v-g .sys .row b { font-family: var(--mono); font-size: 0.78rem; color: var(--teal-deep); font-weight: 600; white-space: nowrap; }
+.v-g footer { margin-top: 3rem; border-top: 1px solid #d9d4c9; padding-top: 1rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-family: var(--mono); font-size: 0.7rem; color: #958c7e; }
+.v-g footer a.footer-link { color: var(--teal); text-decoration: none; }
+
+/* ════ H — THE OPERATIONS FLOOR (dark, cool) ════ */
+.v-h { background: linear-gradient(150deg, #0b1513 0%, #0e1d1a 55%, #0a1412 100%); border-color: #1c2f2b; }
+.v-h .scan { position: absolute; inset: 0; z-index: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px); background-size: 100% 40px;
+	-webkit-mask-image: radial-gradient(90% 90% at 50% 20%, #000 30%, transparent 85%); mask-image: radial-gradient(90% 90% at 50% 20%, #000 30%, transparent 85%); }
+.v-h .grain { opacity: 0.3; mix-blend-mode: overlay; }
+.v-h .tag { color: rgba(233,239,236,0.4); }
+.v-h .site { display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; padding: 0.4rem 0 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.09); }
+.v-h .wordmark { font-family: var(--mono); font-weight: 700; font-size: 1.15rem; color: #e9efec; text-decoration: none; }
+.v-h .wordmark span { color: var(--teal-lift); }
+.v-h .site nav { display: flex; gap: 1.4rem; }
+.v-h .site nav a { color: rgba(233,239,236,0.55); text-decoration: none; font-size: 0.85rem; font-weight: 500; }
+.v-h .role { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--teal-lift); margin: 3rem 0 1rem; }
+.v-h h1 { font-size: 3.3rem; line-height: 1.06; letter-spacing: -0.028em; font-weight: 700; margin: 0 0 1rem; max-width: 46rem; color: #f2f6f4; text-wrap: balance; }
+.v-h .lede { font-size: 1.1rem; color: rgba(233,239,236,0.62); max-width: 44rem; margin: 0 0 2.6rem; }
+.v-h .lede b { color: #e9efec; font-weight: 600; }
+.v-h .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid rgba(255,255,255,0.09); border-bottom: 1px solid rgba(255,255,255,0.09); margin-bottom: 3rem; }
+.v-h .stat { padding: 1.15rem 1.4rem 1.1rem; border-left: 1px solid rgba(255,255,255,0.09); }
+.v-h .stat:first-child { border-left: none; padding-left: 0.2rem; }
+.v-h .stat .n { font-family: var(--mono); font-size: 1.9rem; font-weight: 600; color: var(--teal-lift); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.v-h .stat .l { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(233,239,236,0.45); margin-top: 0.2rem; }
+.v-h h2 { font-family: var(--mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(233,239,236,0.55); margin: 0 0 1rem; display: flex; align-items: baseline; justify-content: space-between; }
+.v-h h2 .count { color: var(--teal-lift); }
+.v-h .fleet { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 3rem; }
+.v-h .module { box-shadow: 0 14px 40px rgba(0,0,0,0.35); }
+.v-h .module.build { border-color: rgba(233,239,236,0.25); color: rgba(233,239,236,0.5); box-shadow: none; }
+.v-h .sys { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem 2.5rem; border-top: 1px solid rgba(255,255,255,0.09); padding-top: 1.4rem; }
+.v-h .sys .row { display: flex; gap: 0.8rem; align-items: baseline; font-size: 0.9rem; color: rgba(233,239,236,0.62); }
+.v-h .sys .row b { font-family: var(--mono); font-size: 0.78rem; color: var(--teal-lift); font-weight: 600; white-space: nowrap; }
+.v-h footer { margin-top: 3rem; border-top: 1px solid rgba(255,255,255,0.09); padding-top: 1rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-family: var(--mono); font-size: 0.7rem; color: rgba(233,239,236,0.45); }
+.v-h footer a.footer-link { color: var(--teal-lift); text-decoration: none; }
+
+@media (max-width: 720px) {
+	body { padding: 1rem 0.75rem 3rem; }
+	.inner { padding: 1.4rem 1.2rem 2.4rem; }
+	.tag { display: none; }
+	.v-g h1, .v-h h1 { font-size: 2.15rem; }
+	.v-g .stats, .v-h .stats { grid-template-columns: 1fr 1fr; }
+	.v-g .stat, .v-h .stat { border-left: none; padding-left: 0.2rem; border-top: 1px solid #d9d4c9; }
+	.v-h .stat { border-top-color: rgba(255,255,255,0.09); }
+	.v-g .stat:nth-child(-n+2), .v-h .stat:nth-child(-n+2) { border-top: none; }
+	.v-g .fleet, .v-h .fleet, .v-g .sys, .v-h .sys { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<p class="page-title">netm8.com as conglomerate — uniform black+gold product modules, parent authority in teal</p>
+
+<!-- ════ G — THE HOLDING ════ -->
+<section class="variant v-g">
+	<span class="tag">G — The holding · light</span>
+	<div class="grain"></div>
+	<div class="inner">
+		<div class="site">
+			<a class="wordmark" href="#">net<span>m8</span></a>
+			<nav><a href="#">feeds</a><a href="#">standards</a><a href="#">contact</a></nav>
+		</div>
+
+		<p class="role">Operator of specialist changefeeds</p>
+		<h1>Official registers, served live, to one standard.</h1>
+		<p class="lede">netm8 operates feeds like <b>tariff.watch</b> and <b>recalls.netm8</b> — each watching a single official register and recording every change with its legal status, effective dates, and primary document. Same record shape, same guarantees, on every domain.</p>
+
+		<div class="stats">
+			<div class="stat"><div class="n">02</div><div class="l">feeds live</div></div>
+			<div class="stat"><div class="n">1,284</div><div class="l">records on file</div></div>
+			<div class="stat"><div class="n">48</div><div class="l">source checks today</div></div>
+			<div class="stat"><div class="n">100%</div><div class="l">source-linked</div></div>
+		</div>
+
+		<h2>The feeds <span class="count">every record source-linked</span></h2>
+		<div class="fleet">
+			<div class="module">
+				<span class="dot"></span>
+				<a class="wm" href="#">tariff<span>.watch</span></a>
+				<p class="src">US tariff &amp; trade actions — federalregister.gov</p>
+				<div class="stats"><span><b>1,041</b> records</span><span>checked <b>9 min ago</b></span><span><b>daily</b> snapshots</span></div>
+				<div class="imprint">a <b>netm8</b> feed</div>
+			</div>
+			<div class="module">
+				<span class="dot"></span>
+				<a class="wm" href="#">recalls<span>.netm8</span></a>
+				<p class="src">FDA enforcement reports — fda.gov</p>
+				<div class="stats"><span><b>243</b> records</span><span>checked <b>14 min ago</b></span><span><b>daily</b> snapshots</span></div>
+				<div class="imprint">a <b>netm8</b> feed</div>
+			</div>
+		</div>
+
+		<h2>Every feed, the same guarantees</h2>
+		<div class="sys">
+			<div class="row"><b>record contract</b><span>every change event ships the same schema — status, dates, parties, provenance.</span></div>
+			<div class="row"><b>immutable snapshots</b><span>dated archives that never change, for point-in-time grounding.</span></div>
+			<div class="row"><b>machine surfaces</b><span>REST, MCP, and RSS on every domain, same shapes everywhere.</span></div>
+			<div class="row"><b>primary sources</b><span>every record carries the URL of the official document it summarises.</span></div>
+		</div>
+
+		<footer>
+			<span>netm8 — facts only, primary sources, immutable snapshots</span>
+			<span><a class="footer-link" href="#">terms</a> · <a class="footer-link" href="#">status</a> · <a class="footer-link" href="#">contact</a></span>
+		</footer>
+	</div>
+</section>
+
+<!-- ════ H — THE OPERATIONS FLOOR ════ -->
+<section class="variant v-h">
+	<span class="tag">H — Operations floor · dark</span>
+	<div class="scan"></div><div class="grain"></div>
+	<div class="inner">
+		<div class="site">
+			<a class="wordmark" href="#">net<span>m8</span></a>
+			<nav><a href="#">feeds</a><a href="#">standards</a><a href="#">contact</a></nav>
+		</div>
+
+		<p class="role">Operator of specialist changefeeds</p>
+		<h1>Official registers, served live, to one standard.</h1>
+		<p class="lede">netm8 operates feeds like <b>tariff.watch</b> and <b>recalls.netm8</b> — each watching a single official register and recording every change with its legal status, effective dates, and primary document. Same record shape, same guarantees, on every domain.</p>
+
+		<div class="stats">
+			<div class="stat"><div class="n">02</div><div class="l">feeds live</div></div>
+			<div class="stat"><div class="n">1,284</div><div class="l">records on file</div></div>
+			<div class="stat"><div class="n">48</div><div class="l">source checks today</div></div>
+			<div class="stat"><div class="n">100%</div><div class="l">source-linked</div></div>
+		</div>
+
+		<h2>The feeds <span class="count">every record source-linked</span></h2>
+		<div class="fleet">
+			<div class="module">
+				<span class="dot"></span>
+				<a class="wm" href="#">tariff<span>.watch</span></a>
+				<p class="src">US tariff &amp; trade actions — federalregister.gov</p>
+				<div class="stats"><span><b>1,041</b> records</span><span>checked <b>9 min ago</b></span><span><b>daily</b> snapshots</span></div>
+				<div class="imprint">a <b>netm8</b> feed</div>
+			</div>
+			<div class="module">
+				<span class="dot"></span>
+				<a class="wm" href="#">recalls<span>.netm8</span></a>
+				<p class="src">FDA enforcement reports — fda.gov</p>
+				<div class="stats"><span><b>243</b> records</span><span>checked <b>14 min ago</b></span><span><b>daily</b> snapshots</span></div>
+				<div class="imprint">a <b>netm8</b> feed</div>
+			</div>
+		</div>
+
+		<h2>Every feed, the same guarantees</h2>
+		<div class="sys">
+			<div class="row"><b>record contract</b><span>every change event ships the same schema — status, dates, parties, provenance.</span></div>
+			<div class="row"><b>immutable snapshots</b><span>dated archives that never change, for point-in-time grounding.</span></div>
+			<div class="row"><b>machine surfaces</b><span>REST, MCP, and RSS on every domain, same shapes everywhere.</span></div>
+			<div class="row"><b>primary sources</b><span>every record carries the URL of the official document it summarises.</span></div>
+		</div>
+
+		<footer>
+			<span>netm8 — facts only, primary sources, immutable snapshots</span>
+			<span><a class="footer-link" href="#">terms</a> · <a class="footer-link" href="#">status</a> · <a class="footer-link" href="#">contact</a></span>
+		</footer>
+	</div>
+</section>
+
+</body>
+</html>
